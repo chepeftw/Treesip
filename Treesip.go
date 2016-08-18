@@ -1,0 +1,416 @@
+package main
+ 
+import (
+    "os"
+    "fmt"
+    "net"
+    "time"
+    // "strings"
+    "encoding/json"
+
+    "github.com/op/go-logging"
+)
+
+
+// +++++++++++++++++++++++++++
+// +++++++++ Go-Logging Conf
+// +++++++++++++++++++++++++++
+var log = logging.MustGetLogger("treesip")
+
+// Example format string. Everything except the message has a custom color
+// which is dependent on the log level. Many fields have a custom output
+// formatting too, eg. the time returns the hour down to the milli second.
+// var format1 = logging.MustStringFormatter(
+//     `%{color}%{time:15:04:05.000} %{shortfunc} ▶ %{level:.4s} %{id:03x}%{color:reset} %{message}`,
+// )
+
+var format = logging.MustStringFormatter(
+    "%{level:.1s} %{time:0102 15:04:05.999999} %{pid} %{shortfile} *%{level:.4s}* %{message}",
+)
+
+
+// +++++++++ Constants
+const (
+    Port              = ":10001"
+    Protocol          = "udp"
+    BroadcastAddr     = "255.255.255.255"
+    TimeoutType       = "timeout"
+    QueryType         = "query"
+    AggregateType     = "aggregate"
+    AggregateFwdType  = "aggregateForward"
+    AggregateRteType  = "aggregateRoute"
+)
+
+const (
+    INITIAL = iota
+    Q1
+    Q2
+    A1
+    A2
+    A3
+)
+
+// +++++++++ Global vars
+var state = INITIAL
+var myIP net.IP = net.ParseIP("127.0.0.1")
+var parentIP net.IP = net.ParseIP("127.0.0.1")
+var timeout float32 = 0
+
+var stateQuery Packet = Packet{}
+var queryACKlist []net.IP = []net.IP{}
+var timer *time.Timer
+
+var accumulator float32 = 0
+var observations int = 0
+
+// +++++++++ Channels
+var buffer = make(chan string)
+var done = make(chan bool)
+
+// +++++++++ Packet structure
+type Packet struct {
+    Type      string        `json:"type"`
+    Parent    net.IP        `json:"parent"`
+    Source    net.IP        `json:"source"`
+    Timeout   float32       `json:"timeout"`
+    Query     *Query        `json:"query,omitempty"`
+    Aggregate *Aggregate    `json:"aggregate,omitempty"`
+}
+
+type Query struct {
+    Function  string    `json:"function,omitempty"`
+    RelaySet  []*net.IP `json:"relaySet,omitempty"`
+}
+
+type Aggregate struct {
+    Outcome      float32 `json:"outcome,omitempty"`
+    Destination  net.IP `json:"destination,omitempty"`
+    Observations int    `json:"observations,omitempty"`
+}
+
+ 
+// A Simple function to verify error
+func CheckError(err error) {
+    if err  != nil {
+        log.Error("Error: ", err)
+    }
+}
+
+// Getting my own IP, first we get all interfaces, then we iterate
+// discard the loopback and get the IPv4 address, which should be the eth0
+func SelfIP() net.IP {
+    addrs, err := net.InterfaceAddrs()
+    if err != nil {
+        panic(err)
+    }
+
+    for _, a := range addrs {
+        if ipnet, ok := a.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+            if ipnet.IP.To4() != nil {
+                return ipnet.IP
+            }
+        }
+    }
+
+    return net.ParseIP("127.0.0.1")
+}
+
+func SendAggregate(destination net.IP, outcome float32, observations int) {
+    aggregate := Aggregate{
+            Destination: destination,
+            Outcome: outcome,
+            Observations: observations,
+        }
+
+    payload := Packet{
+        Type: AggregateType,
+        Parent: parentIP,
+        Source: myIP,
+        // Timeout: timeout,
+        Aggregate: &aggregate,
+    }
+
+    SendMessage(payload,destination.String()+Port)
+}
+
+func SendQuery(receivedPacket Packet) {
+    query := Query{
+            Function: receivedPacket.Query.Function,
+            RelaySet: CalculateRelaySet(receivedPacket.Source, receivedPacket.Query.RelaySet),
+        }
+
+    payload := Packet{
+        Type: QueryType,
+        Parent: parentIP,
+        Source: myIP,
+        Timeout: timeout,
+        Query: &query,
+    }
+
+    SendMessage(payload, BroadcastAddr+Port)
+}
+
+func SendMessage(payload Packet, target string) {
+    ServerAddr,err := net.ResolveUDPAddr(Protocol, target)
+    CheckError(err)
+    LocalAddr, err := net.ResolveUDPAddr(Protocol, myIP.String()+":0")
+    CheckError(err)
+    Conn, err := net.DialUDP(Protocol, LocalAddr, ServerAddr)
+    CheckError(err)
+    defer Conn.Close()
+
+    js, err := json.Marshal(payload)
+    CheckError(err)
+
+    if Conn != nil {
+        msg := js
+        buf := []byte(msg)
+        _,err = Conn.Write(buf)
+        CheckError(err)
+    }
+}
+
+// Function to calculate the RelaySet
+// the idea is to always have 3 elements. Seen as a tree, the closer 3 parents.
+func CalculateRelaySet( newItem net.IP, receivedRelaySet []*net.IP ) []*net.IP {
+    slice := []*net.IP{&newItem}
+
+    if len(receivedRelaySet) < 3 {
+        return append(slice, receivedRelaySet...)
+    }
+
+    return append(slice, receivedRelaySet[:len(receivedRelaySet)-1]...)
+}
+
+// Timeout functions to start and stop the timer
+func StartTimer(d float32) {
+    if &timer == nil {
+        timer = time.NewTimer(time.Second * time.Duration(d))
+    } else {
+        timer.Reset(time.Second * time.Duration(d))
+    }
+
+    go func() {
+        <- timer.C
+        buffer <- "{\"type\":\"" + TimeoutType + "\"}"
+        println("Timer expired")
+    }()
+}
+
+func StopTimer() {
+    if &timer != nil {
+        timer.Stop()
+    }
+}
+
+func CalculateOwnValue() float32 {
+    return 50.0
+}
+
+func CalculateAggregateValue( v float32, o int ) {
+    accumulator += v
+    observations += o
+}
+
+func RemoveFromList(del net.IP) bool {
+    index := -1
+    for i, b := range queryACKlist {
+        if b.Equal(del) {
+            index = i
+            break
+        }
+    }
+
+    if index >= 0 {
+        queryACKlist = append(queryACKlist[:index], queryACKlist[index+1:]...)
+        return true
+    }
+
+    return false
+}
+
+func CleanupTheHouse() {
+    parentIP = net.ParseIP("127.0.0.1")
+    timeout = 0
+
+    stateQuery = Packet{}
+    queryACKlist = []net.IP{}
+    // Timer
+
+    accumulator = 0
+    observations = 0
+}
+
+// Function that handles the buffer channel
+func attendBufferChannel() {
+    for {
+        j, more := <-buffer
+        if more {
+            // s := strings.Split(j, "|")
+            // _, jsonStr := s[0], s[1]
+
+            // First we take the json, unmarshal it to an object
+            packet := Packet{}
+            json.Unmarshal([]byte(j), &packet)
+
+            // Now we start! FSM TIME!
+            switch state {
+            case INITIAL:
+                // RCV start() -> SND Query
+                // ToDo
+
+                // RCV Query -> SND Query
+                if packet.Type == QueryType {
+                    state = Q1
+                    stateQuery = packet
+                    parentIP = packet.Parent
+                    timeout = packet.Timeout
+                    SendQuery(packet)
+                    StartTimer(timeout)
+                }
+            break
+            case Q1: 
+                // RCV QueryACK -> acc(ACK_IP)
+                if packet.Type == QueryType && packet.Parent.Equal(myIP) {
+                    state = Q2
+                    queryACKlist = append(queryACKlist, packet.Source)
+                    StopTimer()
+                }
+
+                // timeout() -> SND Aggregate
+                if packet.Type == TimeoutType {
+                    state = A1
+                    SendAggregate(parentIP, CalculateOwnValue(), 1)
+                    StartTimer(timeout)
+                    // Just one outcome and 1 observation because it should be the end of a branch
+                    // Otherwise its a chapter of Stranger Things or Lost
+                }
+
+                // edgeNode() -> SND Aggregate
+                // ToDo - not for now since we need GPS info or another mechanism
+            break
+            case Q2:
+                // RCV QueryACK -> acc(ACK_IP)
+                if packet.Type == QueryType && packet.Parent.Equal(myIP) {
+                    state = Q2 // loop to stay in Q2
+                    queryACKlist = append(queryACKlist, packet.Source)
+                }
+
+                // RCV Aggregate -> SND Aggregate // not always but yes
+                // I check that the parent it is itself, that means that he already stored this guy
+                // in the queryACKList
+                if packet.Type == AggregateType && packet.Parent.Equal(myIP) {
+                    state = A1
+                    StopTimer()
+                    CalculateAggregateValue(packet.Aggregate.Outcome, packet.Aggregate.Observations)
+                    RemoveFromList(packet.Source)
+                    if len(queryACKlist) == 0 {
+                        SendAggregate(parentIP, accumulator + CalculateOwnValue(), observations + 1)
+                        StartTimer(timeout)
+                    }
+                }
+            break
+            case A1:
+                // RCV Aggregate -> SND Aggregate // not always but yes
+                // I check that the parent it is itself, that means that he already stored this guy
+                // in the queryACKList
+                if packet.Type == AggregateType && packet.Parent.Equal(myIP) {
+                    state = A1
+                    StopTimer()
+                    CalculateAggregateValue(packet.Aggregate.Outcome, packet.Aggregate.Observations)
+                    RemoveFromList(packet.Source)
+                    if len(queryACKlist) == 0 {
+                        SendAggregate(parentIP, accumulator + CalculateOwnValue(), observations + 1)
+                        StartTimer(timeout)
+                    }
+                }
+
+                // RCV AggregateACK -> done()
+                if packet.Type == AggregateType && packet.Source.Equal(parentIP) {
+                    state = INITIAL
+                    CleanupTheHouse()
+                }
+
+                // timeout -> SND AggregateRoute // not today
+                if packet.Type == TimeoutType {
+                    // state = A2 // it should do this, but not today
+                    state = INITIAL
+                    CleanupTheHouse()
+                }
+            break
+            case A2:
+                // Not happening bro!
+            break
+            default:
+                // Welcome to Stranger Things ... THIS REALLY SHOULD NOT HAPPEN
+            break
+            }
+
+        } else {
+            log.Debug("closing channel")
+            done <- true
+            return
+        }
+    }
+}
+ 
+func main() {
+
+    // +++++++++++++++++++++++++++++
+    // ++++++++ Logger conf
+    var logPath = "/var/log/golang/"
+    if _, err := os.Stat(logPath); os.IsNotExist(err) {
+        os.MkdirAll(logPath, 0777)
+    }
+
+    var logFile = logPath + "treesip.log"
+    f, err := os.OpenFile(logFile, os.O_APPEND | os.O_CREATE | os.O_RDWR, 0666)
+    if err != nil {
+        fmt.Printf("error opening file: %v", err)
+    }
+
+    // don't forget to close it
+    defer f.Close()
+
+    backend := logging.NewLogBackend(f, "", 0)
+    backendFormatter := logging.NewBackendFormatter(backend, format)
+
+    logging.SetBackend(backendFormatter)
+    // ++++++++ END Logger conf
+    // +++++++++++++++++++++++++++++
+
+    log.Info("Starting Treesip process")
+
+    // It gives one minute time for the network to get configured before it gets its own IP.
+    time.Sleep(time.Second * 60)
+    myIP = SelfIP();
+
+
+    // Lets prepare a address at any address at port 10001
+    ServerAddr,err := net.ResolveUDPAddr(Protocol, Port)
+    CheckError(err)
+ 
+    // Now listen at selected port
+    ServerConn, err := net.ListenUDP(Protocol, ServerAddr)
+    CheckError(err)
+    defer ServerConn.Close()
+
+    go attendBufferChannel()
+ 
+    buf := make([]byte, 1024)
+ 
+    for {
+        n,addr,err := ServerConn.ReadFromUDP(buf)
+        // buffer <- addr.String() + "|" + string(buf[0:n])
+        buffer <- string(buf[0:n])
+        log.Info("Received " + string(buf[0:n]) + " from " + addr )
+        
+        if err != nil {
+            log.Error("Error: ",err)
+        }
+    }
+
+    close(buffer)
+
+    <-done
+}
