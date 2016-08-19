@@ -424,7 +424,7 @@ func selectLeaderOfTheManet() {
             Query: &query,
         }
 
-        time.Sleep(time.Second * 3)
+        time.Sleep(time.Second * 10)
         log.Info("The leader has been choosen!!! All hail the new KING!!!")
 
         SendMessageExt(payload, myIP.String()+Port)
