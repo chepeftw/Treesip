@@ -398,7 +398,7 @@ func selectLeaderOfTheManet() {
     // The root, the source, the neo, the parent of the MANET, you name it
 
     // Yep, shitty method!
-    if myIP.String() == "10.12.0.5" {
+    if myIP.String() == "10.12.0.12" {
         rootNode = true
 
         query := Query{
