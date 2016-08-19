@@ -376,13 +376,14 @@ func selectLeaderOfTheManet() {
             }
 
         payload := Packet{
-            Type: QueryType,
+            Type: StartType,
+            Source: myIP
             Timeout: 10,
             Query: &query,
         }
 
         log.Info("The leader has been choosen!!! All hail the new KING!!!")
-        time.Sleep(time.Second * 90)
+        time.Sleep(time.Second * 60)
 
         SendMessageExt(payload, myIP.String()+Port)
     }
