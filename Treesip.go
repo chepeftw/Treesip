@@ -377,7 +377,7 @@ func selectLeaderOfTheManet() {
 
         payload := Packet{
             Type: StartType,
-            Source: myIP
+            Source: myIP,
             Timeout: 10,
             Query: &query,
         }
