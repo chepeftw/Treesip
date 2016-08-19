@@ -27,7 +27,7 @@ var format = logging.MustStringFormatter(
 // +++++++++ Constants
 const (
     Port              = ":10001"
-    Protocol          = "tcp"
+    Protocol          = "udp"
     BroadcastAddr     = "255.255.255.255"
     StartType         = "start"
     TimeoutType       = "timeout"
@@ -58,7 +58,8 @@ var timer *time.Timer
 
 var accumulator float32 = 0
 var observations int = 0
-
+var rootNode bool = false
+var startTime int64 = 0
 
 var globalNumberNodes int = 0
 var globalCounter int = 0
@@ -66,10 +67,6 @@ var electionNode string = ""
 
 var s1 = rand.NewSource(time.Now().UnixNano())
 var r1 = rand.New(s1)
-
-var rootNode bool = false
-
-var startTime int64 = 0
 
 // +++++++++ Channels
 var buffer = make(chan string)
@@ -253,6 +250,8 @@ func CleanupTheHouse() {
 
     accumulator = 0
     observations = 0
+    rootNode = false
+    startTime = 0
 
     go selectLeaderOfTheManet()
 }
