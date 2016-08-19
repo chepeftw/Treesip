@@ -18,7 +18,7 @@ import (
 var log = logging.MustGetLogger("treesip")
 
 var format = logging.MustStringFormatter(
-    "%{level:.1s} %{time:0102 15:04:05.999999} %{pid} %{shortfile} *%{level:.4s}* %{message}",
+    "%{level:.4s}=> %{time:0102 15:04:05.999} %{shortfile} %{message}",
 )
 
 
@@ -182,16 +182,12 @@ func CalculateRelaySet( newItem net.IP, receivedRelaySet []*net.IP ) []*net.IP {
 
 // Timeout functions to start and stop the timer
 func StartTimer(d float32) {
-    if &timer == nil {
-        timer = time.NewTimer(time.Second * time.Duration(d))
-    } else {
-        timer.Reset(time.Second * time.Duration(d))
-    }
+    timer = time.NewTimer(time.Second * time.Duration(d))
 
     go func() {
         <- timer.C
         buffer <- "{\"type\":\"" + TimeoutType + "\"}"
-        println("Timer expired")
+        log.Info("Timer expired")
     }()
 }
 
