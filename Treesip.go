@@ -118,9 +118,9 @@ func SendAggregate(destination net.IP, outcome float32, observations int) {
 
     payload := Packet{
         Type: AggregateType,
-        // Parent: parentIP,
+        Parent: parentIP,
         Source: myIP,
-        // Timeout: timeout,
+        Timeout: timeout,
         Aggregate: &aggregate,
     }
 
@@ -141,7 +141,7 @@ func SendQuery(receivedPacket Packet) {
 
     payload := Packet{
         Type: QueryType,
-        // Parent: parentIP,
+        Parent: parentIP,
         Source: myIP,
         Timeout: timeout,
         Query: &query,
@@ -277,7 +277,7 @@ func attendBufferChannel() {
             break
             case Q1: 
                 // RCV QueryACK -> acc(ACK_IP)
-                if packet.Type == QueryType && packet.Aggregate.Destination.Equal(myIP) {
+                if packet.Type == QueryType && packet.Parent.Equal(myIP) {
                     log.Info( myIP.String() + " => State: Q1, RCV QueryACK -> acc(ACK_IP) ")
                     state = Q2
                     queryACKlist = append(queryACKlist, packet.Source)
@@ -297,7 +297,7 @@ func attendBufferChannel() {
             break
             case Q2:
                 // RCV QueryACK -> acc(ACK_IP)
-                if packet.Type == QueryType && packet.Aggregate.Destination.Equal(myIP) {
+                if packet.Type == QueryType && packet.Parent.Equal(myIP) {
                     log.Info( myIP.String() + " => State: Q2, RCV QueryACK -> acc(ACK_IP)")
                     state = Q2 // loop to stay in Q2
                     queryACKlist = append(queryACKlist, packet.Source)
