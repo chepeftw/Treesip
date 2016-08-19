@@ -7,6 +7,7 @@ import (
     "time"
     "strings"
     "strconv"
+    "math/rand"
     "encoding/json"
 
     "github.com/op/go-logging"
@@ -57,6 +58,9 @@ var timer *time.Timer
 
 var accumulator float32 = 0
 var observations int = 0
+
+var s1 = rand.NewSource(time.Now().UnixNano())
+var r1 = rand.New(s1)
 
 // +++++++++ Channels
 var buffer = make(chan string)
@@ -189,7 +193,7 @@ func CalculateRelaySet( newItem net.IP, receivedRelaySet []*net.IP ) []*net.IP {
 
 // Timeout functions to start and stop the timer
 func StartTimer(d float32) {
-    timer = time.NewTimer(time.Second * time.Duration(d))
+    timer = time.NewTimer(time.Second * time.Duration(float32(r1.Intn(7))+d))
 
     go func() {
         <- timer.C
@@ -310,7 +314,7 @@ func attendBufferChannel() {
             case Q2:
                 // RCV QueryACK -> acc(ACK_IP)
                 if packet.Type == QueryType && packet.Parent.Equal(myIP) && !packet.Source.Equal(myIP) {
-                    log.Info( myIP.String() + " => State: Q2, RCV QueryACK -> acc(ACK_IP)")
+                    log.Info( myIP.String() + " => State: Q2, RCV QueryACK -> acc( " + packet.Source.String() + " )")
                     state = Q2 // loop to stay in Q2
                     queryACKlist = append(queryACKlist, packet.Source)
                     log.Info( myIP.String() + " => len(queryACKlist) = " + strconv.Itoa( len( queryACKlist ) ) )
@@ -401,7 +405,7 @@ func selectLeaderOfTheManet() {
         payload := Packet{
             Type: StartType,
             Source: myIP,
-            Timeout: 5,
+            Timeout: 3,
             Query: &query,
         }
 
