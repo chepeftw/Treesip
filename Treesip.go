@@ -382,8 +382,8 @@ func selectLeaderOfTheManet() {
             Query: &query,
         }
 
+        time.Sleep(time.Second * 30)
         log.Info("The leader has been choosen!!! All hail the new KING!!!")
-        time.Sleep(time.Second * 60)
 
         SendMessageExt(payload, myIP.String()+Port)
     }
@@ -417,7 +417,7 @@ func main() {
     log.Info("Starting Treesip process, waiting one minute to get my own IP...")
 
     // It gives one minute time for the network to get configured before it gets its own IP.
-    time.Sleep(time.Second * 60)
+    time.Sleep(time.Second * 30)
     myIP = SelfIP();
 
     log.Info("Good to go, my ip is " + myIP.String())
