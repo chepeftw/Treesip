@@ -59,6 +59,11 @@ var timer *time.Timer
 var accumulator float32 = 0
 var observations int = 0
 
+
+var globalNumberNodes int = 0
+var globalCounter int = 0
+var electionNode string = ""
+
 var s1 = rand.NewSource(time.Now().UnixNano())
 var r1 = rand.New(s1)
 
@@ -248,6 +253,8 @@ func CleanupTheHouse() {
 
     accumulator = 0
     observations = 0
+
+    go selectLeaderOfTheManet()
 }
 
 func listOfIPsToString() string {
@@ -401,11 +408,19 @@ func selectLeaderOfTheManet() {
     // This should be a super elegant way of choosing the leader of the MANET
     // The root, the source, the neo, the parent of the MANET, you name it
 
-    neo := "10.12.0.12"
+    neo := electionNode
 
-    envRoot := os.Getenv("ROOTN")
-    if envRoot != "" {
-        neo = envRoot
+    if globalNumberNodes != 0 {
+        time.Sleep(time.Second * 5)
+        if globalCounter == globalNumberNodes {
+            return
+        }
+
+        s3 := int(globalCounter/250)
+        s4 := int(globalCounter%250)+1
+
+        neo = "10.12." + strconv.Itoa(s3) + "." + strconv.Itoa(s4)
+        globalCounter = globalCounter + 1
     }
 
 
@@ -424,14 +439,25 @@ func selectLeaderOfTheManet() {
             Query: &query,
         }
 
+        log.Info("The leader has been choosen!!! All hail the new KING!!! " + neo)
         time.Sleep(time.Second * 10)
-        log.Info("The leader has been choosen!!! All hail the new KING!!!")
 
         SendMessageExt(payload, myIP.String()+Port)
     }
 }
  
 func main() {
+
+    nnodes := os.Getenv("NNODES")
+    rootn := os.Getenv("ROOTN")
+    if nnodes != "" {
+        globalNumberNodes, _ = strconv.Atoi( nnodes )
+    }
+
+    if rootn != "" {
+        electionNode = rootn
+    }
+
 
     // +++++++++++++++++++++++++++++
     // ++++++++ Logger conf
