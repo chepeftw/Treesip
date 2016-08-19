@@ -27,7 +27,7 @@ var format = logging.MustStringFormatter(
 // +++++++++ Constants
 const (
     Port              = ":10001"
-    Protocol          = "udp"
+    Protocol          = "tcp"
     BroadcastAddr     = "255.255.255.255"
     StartType         = "start"
     TimeoutType       = "timeout"
@@ -361,11 +361,11 @@ func attendBufferChannel() {
                     // log.Debug( myIP.String() + " => len(queryACKlist) = " + strconv.Itoa(len(queryACKlist)))
                     // log.Debug( "queryACKlist = " + listOfIPsToString() )
                     if len(queryACKlist) == 0 && !rootNode {
-                        log.Info("if len(queryACKlist) == 0 && parentIP != nil")
+                        log.Info("if len(queryACKlist) == 0 && !rootNode")
                         SendAggregate(parentIP, accumulator + CalculateOwnValue(), observations + 1)
                         StartTimer(timeout)
                     } else if len(queryACKlist) == 0 && rootNode { // WE ARE DONE!!!!
-                        log.Info("else if len(queryACKlist) == 0 && parentIP == nil")
+                        log.Info("else if len(queryACKlist) == 0 && !rootNode")
                         SendAggregate(myIP, accumulator + CalculateOwnValue(), observations + 1) // Just for ACK
                         log.Info( 
                             myIP.String() + 
