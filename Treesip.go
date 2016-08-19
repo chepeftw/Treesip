@@ -195,7 +195,7 @@ func CalculateRelaySet( newItem net.IP, receivedRelaySet []*net.IP ) []*net.IP {
 
 // Timeout functions to start and stop the timer
 func StartTimer(d float32) {
-    timer = time.NewTimer(time.Second * time.Duration(float32(r1.Intn(7))+d))
+    timer = time.NewTimer(time.Millisecond * time.Duration(float32(r1.Intn(1000))+d))
 
     go func() {
         <- timer.C
@@ -409,7 +409,7 @@ func selectLeaderOfTheManet() {
         payload := Packet{
             Type: StartType,
             Source: myIP,
-            Timeout: 3,
+            Timeout: 1000,
             Query: &query,
         }
 
