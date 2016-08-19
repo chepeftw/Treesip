@@ -5,7 +5,7 @@ import (
     "fmt"
     "net"
     "time"
-    // "strings"
+    "strconv"
     "encoding/json"
 
     "github.com/op/go-logging"
@@ -17,13 +17,6 @@ import (
 // +++++++++++++++++++++++++++
 var log = logging.MustGetLogger("treesip")
 
-// Example format string. Everything except the message has a custom color
-// which is dependent on the log level. Many fields have a custom output
-// formatting too, eg. the time returns the hour down to the milli second.
-// var format1 = logging.MustStringFormatter(
-//     `%{color}%{time:15:04:05.000} %{shortfunc} ▶ %{level:.4s} %{id:03x}%{color:reset} %{message}`,
-// )
-
 var format = logging.MustStringFormatter(
     "%{level:.1s} %{time:0102 15:04:05.999999} %{pid} %{shortfile} *%{level:.4s}* %{message}",
 )
@@ -34,6 +27,7 @@ const (
     Port              = ":10001"
     Protocol          = "udp"
     BroadcastAddr     = "255.255.255.255"
+    StartType         = "start"
     TimeoutType       = "timeout"
     QueryType         = "query"
     AggregateType     = "aggregate"
@@ -130,7 +124,7 @@ func SendAggregate(destination net.IP, outcome float32, observations int) {
         Aggregate: &aggregate,
     }
 
-    SendMessage(payload,destination.String()+Port)
+    SendMessage(payload)
 }
 
 func SendQuery(receivedPacket Packet) {
@@ -147,10 +141,14 @@ func SendQuery(receivedPacket Packet) {
         Query: &query,
     }
 
-    SendMessage(payload, BroadcastAddr+Port)
+    SendMessage(payload)
 }
 
-func SendMessage(payload Packet, target string) {
+func SendMessage(payload Packet) {
+    SendMessageExt(payload, BroadcastAddr+Port)
+}
+
+func SendMessageExt(payload Packet, target string) {
     ServerAddr,err := net.ResolveUDPAddr(Protocol, target)
     CheckError(err)
     LocalAddr, err := net.ResolveUDPAddr(Protocol, myIP.String()+":0")
@@ -235,7 +233,7 @@ func CleanupTheHouse() {
 
     stateQuery = Packet{}
     queryACKlist = []net.IP{}
-    // Timer
+    StopTimer()
 
     accumulator = 0
     observations = 0
@@ -257,13 +255,19 @@ func attendBufferChannel() {
             switch state {
             case INITIAL:
                 // RCV start() -> SND Query
-                // ToDo
-
-                // RCV Query -> SND Query
-                if packet.Type == QueryType {
+                if packet.Type == StartType {
+                    log.Info( myIP.String() + " => State: INITIAL, start() -> SND Query")
                     state = Q1
                     stateQuery = packet
-                    parentIP = packet.Parent
+                    parentIP = packet.Source // should be null
+                    timeout = packet.Timeout
+                    SendQuery(packet)
+                    StartTimer(timeout)
+                } else if packet.Type == QueryType { // RCV Query -> SND Query
+                    log.Info(myIP.String() + " => State: INITIAL, RCV Query -> SND Query")
+                    state = Q1
+                    stateQuery = packet
+                    parentIP = packet.Source
                     timeout = packet.Timeout
                     SendQuery(packet)
                     StartTimer(timeout)
@@ -272,13 +276,12 @@ func attendBufferChannel() {
             case Q1: 
                 // RCV QueryACK -> acc(ACK_IP)
                 if packet.Type == QueryType && packet.Parent.Equal(myIP) {
+                    log.Info( myIP.String() + " => State: Q1, RCV QueryACK -> acc(ACK_IP)")
                     state = Q2
                     queryACKlist = append(queryACKlist, packet.Source)
                     StopTimer()
-                }
-
-                // timeout() -> SND Aggregate
-                if packet.Type == TimeoutType {
+                } else if packet.Type == TimeoutType { // timeout() -> SND Aggregate
+                    log.Info( myIP.String() + " => State: Q1, timeout() -> SND Aggregate")
                     state = A1
                     SendAggregate(parentIP, CalculateOwnValue(), 1)
                     StartTimer(timeout)
@@ -292,14 +295,14 @@ func attendBufferChannel() {
             case Q2:
                 // RCV QueryACK -> acc(ACK_IP)
                 if packet.Type == QueryType && packet.Parent.Equal(myIP) {
+                    log.Info( myIP.String() + " => State: Q2, RCV QueryACK -> acc(ACK_IP)")
                     state = Q2 // loop to stay in Q2
                     queryACKlist = append(queryACKlist, packet.Source)
-                }
-
-                // RCV Aggregate -> SND Aggregate // not always but yes
-                // I check that the parent it is itself, that means that he already stored this guy
-                // in the queryACKList
-                if packet.Type == AggregateType && packet.Parent.Equal(myIP) {
+                } else if packet.Type == AggregateType && packet.Parent.Equal(myIP) { // RCV Aggregate -> SND Aggregate 
+                    // not always but yes
+                    // I check that the parent it is itself, that means that he already stored this guy
+                    // in the queryACKList
+                    log.Info( myIP.String() + " => State: Q2, RCV Aggregate -> SND Aggregate")
                     state = A1
                     StopTimer()
                     CalculateAggregateValue(packet.Aggregate.Outcome, packet.Aggregate.Observations)
@@ -315,25 +318,32 @@ func attendBufferChannel() {
                 // I check that the parent it is itself, that means that he already stored this guy
                 // in the queryACKList
                 if packet.Type == AggregateType && packet.Parent.Equal(myIP) {
+                    log.Info( myIP.String() + " => State: A1, RCV Aggregate & loop() -> SND Aggregate")
                     state = A1
                     StopTimer()
                     CalculateAggregateValue(packet.Aggregate.Outcome, packet.Aggregate.Observations)
                     RemoveFromList(packet.Source)
-                    if len(queryACKlist) == 0 {
+                    if len(queryACKlist) == 0 && parentIP != nil {
                         SendAggregate(parentIP, accumulator + CalculateOwnValue(), observations + 1)
                         StartTimer(timeout)
+                    } else if len(queryACKlist) == 0 && parentIP == nil { // WE ARE DONE!!!!
+                        SendAggregate(myIP, accumulator + CalculateOwnValue(), observations + 1) // Just for ACK
+                        log.Info( 
+                            myIP.String() + 
+                            " => State: A1, **DONE**, Result: " + 
+                            strconv.FormatFloat(float64(accumulator + CalculateOwnValue()), 'f', 6, 64) + 
+                            " and Observations:" + 
+                            strconv.Itoa(observations + 1))
+                        state = INITIAL
+                        CleanupTheHouse()
                     }
-                }
-
-                // RCV AggregateACK -> done()
-                if packet.Type == AggregateType && packet.Source.Equal(parentIP) {
+                } else if packet.Type == AggregateType && packet.Source.Equal(parentIP) { // RCV AggregateACK -> done()
+                    log.Info( myIP.String() + " => State: A1, RCV Aggregate -> done()")
                     state = INITIAL
                     CleanupTheHouse()
-                }
-
-                // timeout -> SND AggregateRoute // not today
-                if packet.Type == TimeoutType {
+                } else if packet.Type == TimeoutType { // timeout -> SND AggregateRoute // not today
                     // state = A2 // it should do this, but not today
+                    log.Info( myIP.String() + " => State: A1, timeout() -> SND AggregateRoute")
                     state = INITIAL
                     CleanupTheHouse()
                 }
@@ -351,6 +361,30 @@ func attendBufferChannel() {
             done <- true
             return
         }
+    }
+}
+
+func selectLeaderOfTheManet() {
+    // This should be a super elegant way of choosing the leader of the MANET
+    // The root, the source, the neo, the parent of the MANET, you name it
+
+    // Yep, shitty method!
+    if myIP.String() == "10.12.0.5" {
+        query := Query{
+                Function: "avg",
+                RelaySet: []*net.IP{},
+            }
+
+        payload := Packet{
+            Type: QueryType,
+            Timeout: 10,
+            Query: &query,
+        }
+
+        log.Info("The leader has been choosen!!! All hail the new KING!!!")
+        time.Sleep(time.Second * 90)
+
+        SendMessageExt(payload, myIP.String()+Port)
     }
 }
  
@@ -379,11 +413,13 @@ func main() {
     // ++++++++ END Logger conf
     // +++++++++++++++++++++++++++++
 
-    log.Info("Starting Treesip process")
+    log.Info("Starting Treesip process, waiting one minute to get my own IP...")
 
     // It gives one minute time for the network to get configured before it gets its own IP.
     time.Sleep(time.Second * 60)
     myIP = SelfIP();
+
+    log.Info("Good to go, my ip is " + myIP.String())
 
 
     // Lets prepare a address at any address at port 10001
@@ -396,6 +432,7 @@ func main() {
     defer ServerConn.Close()
 
     go attendBufferChannel()
+    go selectLeaderOfTheManet()
  
     buf := make([]byte, 1024)
  
@@ -403,7 +440,7 @@ func main() {
         n,addr,err := ServerConn.ReadFromUDP(buf)
         // buffer <- addr.String() + "|" + string(buf[0:n])
         buffer <- string(buf[0:n])
-        log.Info("Received " + string(buf[0:n]) + " from " + addr )
+        log.Info("Received " + string(buf[0:n]) + " from " + addr.String() )
         
         if err != nil {
             log.Error("Error: ",err)
