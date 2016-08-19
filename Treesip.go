@@ -401,8 +401,15 @@ func selectLeaderOfTheManet() {
     // This should be a super elegant way of choosing the leader of the MANET
     // The root, the source, the neo, the parent of the MANET, you name it
 
-    // Yep, shitty method!
-    if myIP.String() == "10.12.0.12" {
+    neo := "10.12.0.12"
+
+    envRoot := os.Getenv("ROOTN")
+    if envRoot != "" {
+        neo = envRoot
+    }
+
+
+    if myIP.String() == neo {
         rootNode = true
 
         query := Query{
