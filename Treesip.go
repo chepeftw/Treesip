@@ -118,7 +118,7 @@ func SendAggregate(destination net.IP, outcome float32, observations int) {
 
     payload := Packet{
         Type: AggregateType,
-        Parent: parentIP,
+        // Parent: parentIP,
         Source: myIP,
         // Timeout: timeout,
         Aggregate: &aggregate,
@@ -128,14 +128,20 @@ func SendAggregate(destination net.IP, outcome float32, observations int) {
 }
 
 func SendQuery(receivedPacket Packet) {
+    relaySet := CalculateRelaySet(receivedPacket.Source, receivedPacket.Query.RelaySet)
+
+    if receivedPacket.Type == StartType {
+        relaySet = []*net.IP{}
+    }
+
     query := Query{
             Function: receivedPacket.Query.Function,
-            RelaySet: CalculateRelaySet(receivedPacket.Source, receivedPacket.Query.RelaySet),
+            RelaySet: relaySet,
         }
 
     payload := Packet{
         Type: QueryType,
-        Parent: parentIP,
+        // Parent: parentIP,
         Source: myIP,
         Timeout: timeout,
         Query: &query,
@@ -271,10 +277,11 @@ func attendBufferChannel() {
             break
             case Q1: 
                 // RCV QueryACK -> acc(ACK_IP)
-                if packet.Type == QueryType && packet.Parent.Equal(myIP) {
-                    log.Info( myIP.String() + " => State: Q1, RCV QueryACK -> acc(ACK_IP)")
+                if packet.Type == QueryType && packet.Aggregate.Destination.Equal(myIP) {
+                    log.Info( myIP.String() + " => State: Q1, RCV QueryACK -> acc(ACK_IP) ")
                     state = Q2
                     queryACKlist = append(queryACKlist, packet.Source)
+                    log.Info( myIP.String() + " => len(queryACKlist) = " + strconv.Itoa( len( queryACKlist ) ) )
                     StopTimer()
                 } else if packet.Type == TimeoutType { // timeout() -> SND Aggregate
                     log.Info( myIP.String() + " => State: Q1, timeout() -> SND Aggregate")
@@ -290,11 +297,12 @@ func attendBufferChannel() {
             break
             case Q2:
                 // RCV QueryACK -> acc(ACK_IP)
-                if packet.Type == QueryType && packet.Parent.Equal(myIP) {
+                if packet.Type == QueryType && packet.Aggregate.Destination.Equal(myIP) {
                     log.Info( myIP.String() + " => State: Q2, RCV QueryACK -> acc(ACK_IP)")
                     state = Q2 // loop to stay in Q2
                     queryACKlist = append(queryACKlist, packet.Source)
-                } else if packet.Type == AggregateType && packet.Parent.Equal(myIP) { // RCV Aggregate -> SND Aggregate 
+                    log.Info( myIP.String() + " => len(queryACKlist) = " + strconv.Itoa(len(queryACKlist)))
+                } else if packet.Type == AggregateType && packet.Aggregate.Destination.Equal(myIP) { // RCV Aggregate -> SND Aggregate 
                     // not always but yes
                     // I check that the parent it is itself, that means that he already stored this guy
                     // in the queryACKList
@@ -313,16 +321,19 @@ func attendBufferChannel() {
                 // RCV Aggregate -> SND Aggregate // not always but yes
                 // I check that the parent it is itself, that means that he already stored this guy
                 // in the queryACKList
-                if packet.Type == AggregateType && packet.Parent.Equal(myIP) {
+                if packet.Type == AggregateType && packet.Aggregate.Destination.Equal(myIP) {
                     log.Info( myIP.String() + " => State: A1, RCV Aggregate & loop() -> SND Aggregate")
                     state = A1
                     StopTimer()
                     CalculateAggregateValue(packet.Aggregate.Outcome, packet.Aggregate.Observations)
                     RemoveFromList(packet.Source)
+                    log.Info( myIP.String() + " => len(queryACKlist) = " + strconv.Itoa(len(queryACKlist)))
                     if len(queryACKlist) == 0 && parentIP != nil {
+                        log.Info("if len(queryACKlist) == 0 && parentIP != nil")
                         SendAggregate(parentIP, accumulator + CalculateOwnValue(), observations + 1)
                         StartTimer(timeout)
                     } else if len(queryACKlist) == 0 && parentIP == nil { // WE ARE DONE!!!!
+                        log.Info("else if len(queryACKlist) == 0 && parentIP == nil")
                         SendAggregate(myIP, accumulator + CalculateOwnValue(), observations + 1) // Just for ACK
                         log.Info( 
                             myIP.String() + 
@@ -437,7 +448,7 @@ func main() {
         n,addr,err := ServerConn.ReadFromUDP(buf)
         // buffer <- addr.String() + "|" + string(buf[0:n])
         buffer <- string(buf[0:n])
-        log.Info("Received " + string(buf[0:n]) + " from " + addr.String() )
+        log.Debug(myIP.String() + " received " + string(buf[0:n]) + " from " + addr.String() )
         
         if err != nil {
             log.Error("Error: ",err)
