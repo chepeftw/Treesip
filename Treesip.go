@@ -62,6 +62,8 @@ var observations int = 0
 var s1 = rand.NewSource(time.Now().UnixNano())
 var r1 = rand.New(s1)
 
+var rootNode bool = false
+
 // +++++++++ Channels
 var buffer = make(chan string)
 var done = make(chan bool)
@@ -276,7 +278,7 @@ func attendBufferChannel() {
                     log.Info( myIP.String() + " => State: INITIAL, start() -> SND Query")
                     state = Q1
                     stateQuery = packet
-                    parentIP = packet.Source // should be null
+                    parentIP = nil
                     timeout = packet.Timeout
                     SendQuery(packet)
                     StartTimer(timeout)
@@ -348,11 +350,11 @@ func attendBufferChannel() {
                     RemoveFromList(packet.Source)
                     log.Info( myIP.String() + " => len(queryACKlist) = " + strconv.Itoa(len(queryACKlist)))
                     log.Info( "queryACKlist = " + listOfIPsToString() )
-                    if len(queryACKlist) == 0 && parentIP != nil {
+                    if len(queryACKlist) == 0 && !rootNode {
                         log.Info("if len(queryACKlist) == 0 && parentIP != nil")
                         SendAggregate(parentIP, accumulator + CalculateOwnValue(), observations + 1)
                         StartTimer(timeout)
-                    } else if len(queryACKlist) == 0 && parentIP == nil { // WE ARE DONE!!!!
+                    } else if len(queryACKlist) == 0 && rootNode { // WE ARE DONE!!!!
                         log.Info("else if len(queryACKlist) == 0 && parentIP == nil")
                         SendAggregate(myIP, accumulator + CalculateOwnValue(), observations + 1) // Just for ACK
                         log.Info( 
@@ -397,6 +399,8 @@ func selectLeaderOfTheManet() {
 
     // Yep, shitty method!
     if myIP.String() == "10.12.0.5" {
+        rootNode = true
+
         query := Query{
                 Function: "avg",
                 RelaySet: []*net.IP{},
