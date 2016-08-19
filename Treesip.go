@@ -411,6 +411,7 @@ func selectLeaderOfTheManet() {
     neo := electionNode
 
     if globalNumberNodes != 0 {
+        time.Sleep(time.Second * 5)
         if globalCounter == globalNumberNodes {
             return
         }
