@@ -197,7 +197,7 @@ func CalculateRelaySet( newItem net.IP, receivedRelaySet []*net.IP ) []*net.IP {
 
 // Timeout functions to start and stop the timer
 func StartTimer(d float32) {
-    timer = time.NewTimer(time.Millisecond * time.Duration(float32(r1.Intn(1000))+d))
+    timer = time.NewTimer(time.Millisecond * time.Duration(float32(r1.Intn(1200))+d))
 
     go func() {
         <- timer.C
@@ -366,7 +366,7 @@ func attendBufferChannel() {
                             strconv.FormatFloat(float64(accumulator + CalculateOwnValue()), 'f', 6, 64) + 
                             " and Observations:" + 
                             strconv.Itoa(observations + 1))
-                        log.Info( "Total time to converge = " + strconv.FormatInt( (time.Now().UnixNano() - startTime) / int64(time.Millisecond), 10 ))
+                        log.Info( myIP.String() + " CONVERGENCE_TIME=" + strconv.FormatInt( (time.Now().UnixNano() - startTime) / int64(time.Millisecond), 10 ))
                         state = INITIAL
                         CleanupTheHouse()
                     }
