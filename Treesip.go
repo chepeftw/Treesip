@@ -325,7 +325,7 @@ func attendBufferChannel() {
                     // not always but yes
                     // I check that the parent it is itself, that means that he already stored this guy
                     // in the queryACKList
-                    log.Info( myIP.String() + " => State: Q2, RCV Aggregate -> SND Aggregate remove " + packet.Source.String() " -> " + strconv.Itoa( len( queryACKlist ) ))
+                    log.Info( myIP.String() + " => State: Q2, RCV Aggregate -> SND Aggregate remove " + packet.Source.String() + " -> " + strconv.Itoa( len( queryACKlist ) ))
                     state = A1
                     StopTimer()
                     CalculateAggregateValue(packet.Aggregate.Outcome, packet.Aggregate.Observations)
