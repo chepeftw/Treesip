@@ -407,6 +407,7 @@ func selectLeaderOfTheManet() {
     if envRoot != "" {
         neo = envRoot
     }
+    log.Info("Root node => " + neo)
 
 
     if myIP.String() == neo {
@@ -424,7 +425,7 @@ func selectLeaderOfTheManet() {
             Query: &query,
         }
 
-        time.Sleep(time.Second * 30)
+        time.Sleep(time.Second * 10)
         log.Info("The leader has been choosen!!! All hail the new KING!!!")
 
         SendMessageExt(payload, myIP.String()+Port)
