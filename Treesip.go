@@ -64,6 +64,8 @@ var r1 = rand.New(s1)
 
 var rootNode bool = false
 
+var startTime int64 = 0
+
 // +++++++++ Channels
 var buffer = make(chan string)
 var done = make(chan bool)
@@ -275,6 +277,7 @@ func attendBufferChannel() {
             case INITIAL:
                 // RCV start() -> SND Query
                 if packet.Type == StartType {
+                    startTime = time.Now().UnixNano()
                     log.Info( myIP.String() + " => State: INITIAL, start() -> SND Query")
                     state = Q1
                     stateQuery = packet
@@ -363,6 +366,8 @@ func attendBufferChannel() {
                             strconv.FormatFloat(float64(accumulator + CalculateOwnValue()), 'f', 6, 64) + 
                             " and Observations:" + 
                             strconv.Itoa(observations + 1))
+                        log.Info( "Total time to converge = " + strconv.Itoa( (time.Now().UnixNano() - startTime) / int64(time.Millisecond) ))
+                        startTime
                         state = INITIAL
                         CleanupTheHouse()
                     }
