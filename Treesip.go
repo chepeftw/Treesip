@@ -367,7 +367,6 @@ func attendBufferChannel() {
                             " and Observations:" + 
                             strconv.Itoa(observations + 1))
                         log.Info( "Total time to converge = " + strconv.FormatInt( (time.Now().UnixNano() - startTime) / int64(time.Millisecond), 10 ))
-                        startTime
                         state = INITIAL
                         CleanupTheHouse()
                     }
