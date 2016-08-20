@@ -64,6 +64,7 @@ var startTime int64 = 0
 var globalNumberNodes int = 0
 var globalCounter int = 0
 var electionNode string = ""
+var runMode string = ""
 
 var s1 = rand.NewSource(time.Now().UnixNano())
 var r1 = rand.New(s1)
@@ -412,16 +413,18 @@ func selectLeaderOfTheManet() {
     time.Sleep(time.Second * 15)
     neo := electionNode
 
-    if globalNumberNodes != 0 {
-        if globalCounter == globalNumberNodes {
-            return
+    if runMode != "single" {
+        if globalNumberNodes != 0 {
+            if globalCounter == globalNumberNodes {
+                return
+            }
+
+            s3 := int(globalCounter/250)
+            s4 := int(globalCounter%250)+1
+
+            neo = "10.12." + strconv.Itoa(s3) + "." + strconv.Itoa(s4)
+            globalCounter = globalCounter + 1
         }
-
-        s3 := int(globalCounter/250)
-        s4 := int(globalCounter%250)+1
-
-        neo = "10.12." + strconv.Itoa(s3) + "." + strconv.Itoa(s4)
-        globalCounter = globalCounter + 1
     }
 
 
@@ -451,12 +454,17 @@ func main() {
 
     nnodes := os.Getenv("NNODES")
     rootn := os.Getenv("ROOTN")
+    fsmmode := os.Getenv("FSMMODE")
     if nnodes != "" {
         globalNumberNodes, _ = strconv.Atoi( nnodes )
     }
 
     if rootn != "" {
         electionNode = rootn
+    }
+
+    if fsmmode != "" {
+        runMode = fsmmode
     }
 
 
