@@ -425,6 +425,12 @@ func selectLeaderOfTheManet() {
             neo = "10.12." + strconv.Itoa(s3) + "." + strconv.Itoa(s4)
             globalCounter = globalCounter + 1
         }
+    } else {
+        if globalCounter > 0 {
+            return
+        }
+
+        globalCounter = globalCounter + 1
     }
 
 
