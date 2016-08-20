@@ -391,6 +391,15 @@ func attendBufferChannel() {
                     log.Info( myIP.String() + " => State: A1, timeout() -> SND AggregateRoute")
                     state = INITIAL
                     CleanupTheHouse()
+                    if rootNode { // Just to show something
+                        log.Info( 
+                            myIP.String() + 
+                            " => State: A1, **DONE**, Result: " + 
+                            strconv.FormatFloat(float64(accumulator + CalculateOwnValue()), 'f', 6, 64) + 
+                            " and Observations:" + 
+                            strconv.Itoa(observations + 1))
+                        log.Info( myIP.String() + " CONVERGENCE_TIME=" + strconv.FormatInt( (time.Now().UnixNano() - startTime) / int64(time.Millisecond), 10 ))
+                    }
                 }
             break
             case A2:
