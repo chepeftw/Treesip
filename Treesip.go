@@ -412,7 +412,7 @@ func attendBufferChannel() {
 func selectLeaderOfTheManet() {
     // This should be a super elegant way of choosing the leader of the MANET
     // The root, the source, the neo, the parent of the MANET, you name it
-    time.Sleep(time.Second * 15)
+    time.Sleep(time.Second * 5)
     neo := electionNode
 
     if runMode != "single" {
