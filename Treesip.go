@@ -174,12 +174,15 @@ func SendMessageExt(payload Packet, target string) {
     CheckError(err)
     defer Conn.Close()
 
+    log.Debug( myIP.String() + " SENDING_MESSAGE=1" )
+
     js, err := json.Marshal(payload)
     CheckError(err)
 
     if Conn != nil {
         msg := js
         buf := []byte(msg)
+        log.Debug( myIP.String() + " MESSAGE_SIZE=" + len(buf) )
         _,err = Conn.Write(buf)
         CheckError(err)
     }
