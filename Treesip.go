@@ -182,7 +182,7 @@ func SendMessageExt(payload Packet, target string) {
     if Conn != nil {
         msg := js
         buf := []byte(msg)
-        log.Debug( myIP.String() + " MESSAGE_SIZE=" + len(buf) )
+        log.Debug( myIP.String() + " MESSAGE_SIZE=" + strconv.Itoa(len(buf)) )
         _,err = Conn.Write(buf)
         CheckError(err)
     }
