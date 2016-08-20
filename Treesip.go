@@ -379,6 +379,8 @@ func attendBufferChannel() {
                         log.Info( myIP.String() + " CONVERGENCE_TIME=" + strconv.FormatInt( (time.Now().UnixNano() - startTime) / int64(time.Millisecond), 10 ))
                         state = INITIAL
                         CleanupTheHouse()
+                    } else {
+                        StartTimer(timeout)
                     }
                 } else if packet.Type == AggregateType && packet.Source.Equal(parentIP) { // RCV AggregateACK -> done()
                     log.Info( myIP.String() + " => State: A1, RCV Aggregate -> done()")
