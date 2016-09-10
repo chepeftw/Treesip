@@ -104,7 +104,7 @@ func CheckError(err error) {
 
 // Getting my own IP, first we get all interfaces, then we iterate
 // discard the loopback and get the IPv4 address, which should be the eth0
-func SelfIP() net.IP {
+func SelfieIP() net.IP {
     addrs, err := net.InterfaceAddrs()
     if err != nil {
         panic(err)
@@ -120,6 +120,8 @@ func SelfIP() net.IP {
 
     return net.ParseIP("127.0.0.1")
 }
+// ------------
+
 
 func SendAggregate(destination net.IP, outcome float32, observations int) {
     aggregate := Aggregate{
@@ -514,6 +516,8 @@ func main() {
     time.Sleep(time.Second * time.Duration(globalNumberNodes))
     myIP = SelfIP();
 
+    // But first let me take a selfie, in a Go lang program is getting my own IP
+    myIP = SelfieIP();
     log.Info("Good to go, my ip is " + myIP.String())
 
 
