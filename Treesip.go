@@ -219,6 +219,7 @@ func StopTimer() {
         timer.Stop()
     }
 }
+// ------------
 
 func CalculateOwnValue() float32 {
     return 50.0
@@ -420,18 +421,28 @@ func attendBufferChannel() {
     }
 }
 
+// This function selects the Root node, the source, the NEO!
+// The idea is that if the run mode is "single", it is intended 
+// to run only one time (mind blowing), so it will run, it will converge and that's it.
+// If the run mode is different ("continuous"), it means that the same configuration 
+// should apply but it will run multiple times to get multiple measures with the same "infrastructure"
+// To make multiple runs faster and efficient for data collection.
 func selectLeaderOfTheManet() {
-    // This should be a super elegant way of choosing the leader of the MANET
     // The root, the source, the neo, the parent of the MANET, you name it
-    time.Sleep(time.Second * 5)
     neo := electionNode
 
+    // Please note that the first part of this if is IF IS NOT runmode single.
+    // In other words if the runmode is single, it does not do anything special or significative,
+    // But assumes that a "electionNode" was configured manually from the outside.
+    // First we transform the "global counter", which is the number of the node manually
+    // elected as the root node, into an actual IP.
     if runMode != "single" {
         if globalNumberNodes != 0 {
             if globalCounter == globalNumberNodes {
                 return
             }
 
+            // This allows me a maximum number of 62500 nodes. (250*250)
             s3 := int(globalCounter/250)
             s4 := int(globalCounter%250)+1
 
@@ -447,6 +458,7 @@ func selectLeaderOfTheManet() {
     }
 
 
+    // If I AM NEO ... send the first message.
     if myIP.String() == neo {
         rootNode = true
 
@@ -464,10 +476,14 @@ func selectLeaderOfTheManet() {
 
         log.Info("The leader has been choosen!!! All hail the new KING!!! " + neo)
         // time.Sleep(time.Second * 5)
+        time.Sleep(time.Second * 3)
+        log.Info("The leader has been chosen!!! All hail the new KING!!! " + neo)
+        time.Sleep(time.Second * 3)
 
         SendMessageExt(payload, myIP.String()+Port)
     }
 }
+// ------------
  
 func main() {
 
@@ -487,8 +503,7 @@ func main() {
     }
 
 
-    // +++++++++++++++++++++++++++++
-    // ++++++++ Logger conf
+    // Logger configuration
     var logPath = "/var/log/golang/"
     if _, err := os.Stat(logPath); os.IsNotExist(err) {
         os.MkdirAll(logPath, 0777)
@@ -507,19 +522,18 @@ func main() {
     backendFormatter := logging.NewBackendFormatter(backend, format)
 
     logging.SetBackend(backendFormatter)
-    // ++++++++ END Logger conf
-    // +++++++++++++++++++++++++++++
+    log.Info("Starting Treesip process, waiting some time to get my own IP...")
+    // ------------
 
-    log.Info("Starting Treesip process, waiting one minute to get my own IP...")
-
-    // It gives one minute time for the network to get configured before it gets its own IP.
-    time.Sleep(time.Second * time.Duration(globalNumberNodes))
-    myIP = SelfIP();
+    // It gives some time for the network to get configured before it gets its own IP.
+    // This value should be passed as a environment variable indicating the time when
+    // the simulation starts, this should be calculated by an external source so all
+    // Go programs containers start at the same UnixTime.
+    // ------------
 
     // But first let me take a selfie, in a Go lang program is getting my own IP
     myIP = SelfieIP();
     log.Info("Good to go, my ip is " + myIP.String())
-
 
     // Lets prepare a address at any address at port 10001
     ServerAddr,err := net.ResolveUDPAddr(Protocol, Port)
@@ -530,16 +544,16 @@ func main() {
     CheckError(err)
     defer ServerConn.Close()
 
+    // Run the FSM! The one in charge of everything
     go attendBufferChannel()
+    // Run the election of the leader!
     go selectLeaderOfTheManet()
  
     buf := make([]byte, 1024)
  
     for {
         n,_,err := ServerConn.ReadFromUDP(buf)
-        // buffer <- addr.String() + "|" + string(buf[0:n])
         buffer <- string(buf[0:n])
-        // log.Debug(myIP.String() + " received " + string(buf[0:n]) + " from " + addr.String() )
         
         if err != nil {
             log.Error("Error: ",err)
