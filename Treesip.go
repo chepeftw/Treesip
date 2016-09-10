@@ -530,6 +530,15 @@ func main() {
     // This value should be passed as a environment variable indicating the time when
     // the simulation starts, this should be calculated by an external source so all
     // Go programs containers start at the same UnixTime.
+    now := time.Now().UnixNano()
+    if( tsync > now ) {
+        sleepTime := tsync - now
+        log.Info("SYNC: Sync time is " + tsync + " and sleepTime is " + sleepTime)
+    } else {
+        sleepTime := time.Second * time.Duration(globalNumberNodes)
+        log.Info("SYNC: NO sync time and sleepTime is " + sleepTime)
+    }
+    time.Sleep(sleepTime)
     // ------------
 
     // But first let me take a selfie, in a Go lang program is getting my own IP
