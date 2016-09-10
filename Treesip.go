@@ -474,8 +474,6 @@ func selectLeaderOfTheManet() {
             Query: &query,
         }
 
-        log.Info("The leader has been choosen!!! All hail the new KING!!! " + neo)
-        // time.Sleep(time.Second * 5)
         time.Sleep(time.Second * 3)
         log.Info("The leader has been chosen!!! All hail the new KING!!! " + neo)
         time.Sleep(time.Second * 3)
@@ -487,19 +485,22 @@ func selectLeaderOfTheManet() {
  
 func main() {
 
-    nnodes := os.Getenv("NNODES")
-    rootn := os.Getenv("ROOTN")
-    fsmmode := os.Getenv("FSMMODE")
-    if nnodes != "" {
+    if nnodes := os.Getenv("NNODES"); nnodes != "" {
         globalNumberNodes, _ = strconv.Atoi( nnodes )
     }
 
-    if rootn != "" {
+    if rootn := os.Getenv("ROOTN"); rootn != "" {
         electionNode = rootn
     }
 
-    if fsmmode != "" {
+    if fsmmode := os.Getenv("FSMMODE"); fsmmode != "" {
         runMode = fsmmode
+    }
+
+    if tsync := os.Getenv("TARGETSYNC"); tsync != "" {
+        targetSync, _ := strconv.ParseFloat(tsync, 64)
+    } else {
+        targetSync := 0
     }
 
 
