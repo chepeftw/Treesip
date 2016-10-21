@@ -378,7 +378,7 @@ func selectLeaderOfTheManet() {
         js, err := json.Marshal(payload)
         utils.CheckError(err, log)
         log.Info("Initial JSON " + string(js))
-        output <- string(js)
+        buffer <- string(js)
     }
 }
 // ------------
