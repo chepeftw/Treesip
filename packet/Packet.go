@@ -64,7 +64,7 @@ func calculateRelaySet( newItem net.IP, receivedRelaySet []*net.IP ) []*net.IP {
 
 func AssembleTimeout() Packet {
     payload := Packet{
-        Type: TimeoutType
+        Type: TimeoutType,
     }
 
     return payload
