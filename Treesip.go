@@ -186,7 +186,7 @@ func attendBufferChannel() {
                     parentIP = nil
                     timeout = payload.Timeout
 
-                    SendQuery(payload)
+                    go SendQuery(payload)
                     StartTimer()
 
                     log.Info( myIP.String() + " => State: INITIAL, start() -> SND Query")
@@ -196,7 +196,7 @@ func attendBufferChannel() {
                     parentIP = payload.Source
                     timeout = payload.Timeout
 
-                    SendQuery(payload)
+                    go SendQuery(payload)
                     StartTimer()
 
                     log.Info(myIP.String() + " => State: INITIAL, RCV Query -> SND Query")
@@ -218,7 +218,7 @@ func attendBufferChannel() {
                     // Just one outcome and 1 observation because it should be the end of a branch
                     accumulator = manet.FunctionValue(accumulator)
                     observations = 1
-                    SendAggregate(parentIP, accumulator, observations)
+                    go SendAggregate(parentIP, accumulator, observations)
                     StartTimer()
 
                     log.Info( myIP.String() + " => State: Q1, timeout() -> SND Aggregate")
@@ -245,7 +245,7 @@ func attendBufferChannel() {
                     if len(queryACKlist) == 0 {
                         accumulator = manet.FunctionValue(accumulator)
                         observations = observations + 1
-                        SendAggregate(parentIP, accumulator, observations)
+                        go SendAggregate(parentIP, accumulator, observations)
                         StartTimer()
                     }
 
@@ -269,7 +269,7 @@ func attendBufferChannel() {
                         accumulator = manet.FunctionValue(accumulator)
                         observations = observations + 1
 
-                        SendAggregate(parentIP, accumulator, observations)
+                        go SendAggregate(parentIP, accumulator, observations)
                         StartTimer()
 
                         log.Info("if len(queryACKlist) == 0 && !rootNode")
@@ -278,7 +278,7 @@ func attendBufferChannel() {
                         accumulator = manet.FunctionValue(accumulator)
                         observations = observations + 1
 
-                        SendAggregate(myIP, accumulator, observations) // Just for ACK
+                        go SendAggregate(myIP, accumulator, observations) // Just for ACK
 
                         log.Info("else if len(queryACKlist) == 0 && rootNode")
                         LogSuccess() // Suuuuuuucceeeeess!!!
