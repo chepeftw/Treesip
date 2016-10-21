@@ -294,11 +294,12 @@ func attendBufferChannel() {
                 } else if payload.Type == packet.TimeoutType { // timeout -> SND AggregateRoute // not today
                     // state = A2 // it should do this, but not today
                     log.Debug( myIP.String() + " => State: A1, timeout() -> SND AggregateRoute")
-                    CleanupTheHouse()
 
                     if rootNode { // Just to show something
                         LogSuccess() // Suuuuuuucceeeeess!!!
                     }
+
+                    CleanupTheHouse()
                 }
             break
             case A2:
