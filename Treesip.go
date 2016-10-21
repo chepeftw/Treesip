@@ -181,8 +181,6 @@ func attendBufferChannel() {
             case INITIAL:
                 // RCV start() -> SND Query
                 if payload.Type == packet.StartType {
-                    log.Info( myIP.String() + " => State: INITIAL, start() -> SND Query")
-
                     startTime = time.Now().UnixNano() // Start time of the monitoring process
                     state = Q1 // Moving to Q1 state
                     parentIP = nil
@@ -190,15 +188,18 @@ func attendBufferChannel() {
 
                     SendQuery(payload)
                     StartTimer()
-                } else if payload.Type == packet.QueryType { // RCV Query -> SND Query
-                    log.Info(myIP.String() + " => State: INITIAL, RCV Query -> SND Query")
 
+                    log.Info( myIP.String() + " => State: INITIAL, start() -> SND Query")
+
+                } else if payload.Type == packet.QueryType { // RCV Query -> SND Query
                     state = Q1 // Moving to Q1 state
                     parentIP = payload.Source
                     timeout = payload.Timeout
 
                     SendQuery(payload)
                     StartTimer()
+
+                    log.Info(myIP.String() + " => State: INITIAL, RCV Query -> SND Query")
                 }
             break
             case Q1: 
@@ -212,8 +213,6 @@ func attendBufferChannel() {
                     log.Info( myIP.String() + " => State: Q1, RCV QueryACK -> acc( " + payload.Source.String() + " )-> " + strconv.Itoa( len( queryACKlist ) ) )
 
                 } else if payload.Type == packet.TimeoutType { // timeout()/edgeNode() -> SND Aggregate
-                    log.Info( myIP.String() + " => State: Q1, timeout() -> SND Aggregate")
-
                     state = A1
 
                     // Just one outcome and 1 observation because it should be the end of a branch
@@ -221,6 +220,8 @@ func attendBufferChannel() {
                     observations = 1
                     SendAggregate(parentIP, accumulator, observations)
                     StartTimer()
+
+                    log.Info( myIP.String() + " => State: Q1, timeout() -> SND Aggregate")
                 }
             break
             case Q2:
@@ -235,8 +236,6 @@ func attendBufferChannel() {
                     // not always but yes
                     // I check that the parent it is itself, that means that he already stored this guy
                     // in the queryACKList
-                    log.Info( myIP.String() + " => State: Q2, RCV Aggregate -> SND Aggregate remove " + payload.Source.String() + " -> " + strconv.Itoa( len( queryACKlist ) ))
-
                     state = A1
                     queryACKlist = utils.RemoveFromList(payload.Source, queryACKlist)
 
@@ -249,6 +248,8 @@ func attendBufferChannel() {
                         SendAggregate(parentIP, accumulator, observations)
                         StartTimer()
                     }
+
+                    log.Info( myIP.String() + " => State: Q2, RCV Aggregate -> SND Aggregate remove " + payload.Source.String() + " -> " + strconv.Itoa( len( queryACKlist ) ))
                 }
             break
             case A1:
@@ -256,31 +257,30 @@ func attendBufferChannel() {
                 // I check that the parent it is itself, that means that he already stored this guy
                 // in the queryACKList
                 if payload.Type == packet.AggregateType && payload.Aggregate.Destination.Equal(myIP) {
-                    log.Info( myIP.String() + " => State: A1, RCV Aggregate & loop() -> SND Aggregate " + payload.Source.String() + " -> " + strconv.Itoa(len(queryACKlist)))
-
                     state = A1
                     queryACKlist = utils.RemoveFromList(payload.Source, queryACKlist)
 
                     StopTimer()
                     accumulator, observations  = manet.AggregateValue( payload.Aggregate.Outcome, payload.Aggregate.Observations, accumulator, observations)
 
-                    if len(queryACKlist) == 0 && !rootNode {
-                        log.Info("if len(queryACKlist) == 0 && !rootNode")
+                    log.Info( myIP.String() + " => State: A1, RCV Aggregate & loop() -> SND Aggregate " + payload.Source.String() + " -> " + strconv.Itoa(len(queryACKlist)))
 
+                    if len(queryACKlist) == 0 && !rootNode {
                         accumulator = manet.FunctionValue(accumulator)
                         observations = observations + 1
 
                         SendAggregate(parentIP, accumulator, observations)
                         StartTimer()
 
-                    } else if len(queryACKlist) == 0 && rootNode { // WE ARE DONE!!!!
-                        log.Info("else if len(queryACKlist) == 0 && !rootNode")
+                        log.Info("if len(queryACKlist) == 0 && !rootNode")
 
+                    } else if len(queryACKlist) == 0 && rootNode { // WE ARE DONE!!!!
                         accumulator = manet.FunctionValue(accumulator)
                         observations = observations + 1
 
                         SendAggregate(myIP, accumulator, observations) // Just for ACK
 
+                        log.Info("else if len(queryACKlist) == 0 && rootNode")
                         LogSuccess() // Suuuuuuucceeeeess!!!
                         CleanupTheHouse()
                     } else {
