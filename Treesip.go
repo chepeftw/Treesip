@@ -87,7 +87,7 @@ func StartTimer() {
         js, err := json.Marshal(packet.AssembleTimeout())
         utils.CheckError(err, log)
         buffer <- string(js)
-        log.Info("Timer expired")
+        log.Debug("Timer expired")
     }()
 }
 func StopTimer() {
@@ -137,8 +137,8 @@ func attendOutputChannel() {
             if Conn != nil {
                 buf := []byte(j)
                 _,err = Conn.Write(buf)
-                log.Debug( myIP.String() + " MESSAGE_SIZE=" + strconv.Itoa(len(buf)) )
-                log.Debug( myIP.String() + " SENDING_MESSAGE=1" )
+                log.Info( myIP.String() + " MESSAGE_SIZE=" + strconv.Itoa(len(buf)) )
+                log.Info( myIP.String() + " SENDING_MESSAGE=1" )
                 utils.CheckError(err, log)
             }
         } else {
@@ -210,7 +210,7 @@ func attendBufferChannel() {
 
                     StopTimer()
 
-                    log.Info( myIP.String() + " => State: Q1, RCV QueryACK -> acc( " + payload.Source.String() + " )-> " + strconv.Itoa( len( queryACKlist ) ) )
+                    log.Debug( myIP.String() + " => State: Q1, RCV QueryACK -> acc( " + payload.Source.String() + " )-> " + strconv.Itoa( len( queryACKlist ) ) )
 
                 } else if payload.Type == packet.TimeoutType { // timeout()/edgeNode() -> SND Aggregate
                     state = A1
@@ -221,7 +221,7 @@ func attendBufferChannel() {
                     SendAggregate(parentIP, accumulator, observations)
                     StartTimer()
 
-                    log.Info( myIP.String() + " => State: Q1, timeout() -> SND Aggregate")
+                    log.Debug( myIP.String() + " => State: Q1, timeout() -> SND Aggregate")
                 }
             break
             case Q2:
@@ -230,7 +230,7 @@ func attendBufferChannel() {
                     state = Q2 // loop to stay in Q2
                     queryACKlist = append(queryACKlist, payload.Source)
 
-                    log.Info( myIP.String() + " => State: Q2, RCV QueryACK -> acc( " + payload.Source.String() + " ) -> " + strconv.Itoa( len( queryACKlist ) ))
+                    log.Debug( myIP.String() + " => State: Q2, RCV QueryACK -> acc( " + payload.Source.String() + " ) -> " + strconv.Itoa( len( queryACKlist ) ))
 
                 } else if payload.Type == packet.AggregateType && payload.Aggregate.Destination.Equal(myIP) { // RCV Aggregate -> SND Aggregate 
                     // not always but yes
@@ -249,7 +249,7 @@ func attendBufferChannel() {
                         StartTimer()
                     }
 
-                    log.Info( myIP.String() + " => State: Q2, RCV Aggregate -> SND Aggregate remove " + payload.Source.String() + " -> " + strconv.Itoa( len( queryACKlist ) ))
+                    log.Debug( myIP.String() + " => State: Q2, RCV Aggregate -> SND Aggregate remove " + payload.Source.String() + " -> " + strconv.Itoa( len( queryACKlist ) ))
                 }
             break
             case A1:
@@ -263,7 +263,7 @@ func attendBufferChannel() {
                     StopTimer()
                     accumulator, observations  = manet.AggregateValue( payload.Aggregate.Outcome, payload.Aggregate.Observations, accumulator, observations)
 
-                    log.Info( myIP.String() + " => State: A1, RCV Aggregate & loop() -> SND Aggregate " + payload.Source.String() + " -> " + strconv.Itoa(len(queryACKlist)))
+                    log.Debug( myIP.String() + " => State: A1, RCV Aggregate & loop() -> SND Aggregate " + payload.Source.String() + " -> " + strconv.Itoa(len(queryACKlist)))
 
                     if len(queryACKlist) == 0 && !rootNode {
                         accumulator = manet.FunctionValue(accumulator)
@@ -272,7 +272,7 @@ func attendBufferChannel() {
                         SendAggregate(parentIP, accumulator, observations)
                         StartTimer()
 
-                        log.Info("if len(queryACKlist) == 0 && !rootNode")
+                        log.Debug("if len(queryACKlist) == 0 && !rootNode")
 
                     } else if len(queryACKlist) == 0 && rootNode { // WE ARE DONE!!!!
                         accumulator = manet.FunctionValue(accumulator)
@@ -280,7 +280,7 @@ func attendBufferChannel() {
 
                         SendAggregate(myIP, accumulator, observations) // Just for ACK
 
-                        log.Info("else if len(queryACKlist) == 0 && rootNode")
+                        log.Debug("else if len(queryACKlist) == 0 && rootNode")
                         LogSuccess() // Suuuuuuucceeeeess!!!
                         CleanupTheHouse()
                     } else {
@@ -288,12 +288,12 @@ func attendBufferChannel() {
                     }
 
                 } else if payload.Type == packet.AggregateType && payload.Source.Equal(parentIP) { // RCV AggregateACK -> done()
-                    log.Info( myIP.String() + " => State: A1, RCV Aggregate -> done()")
+                    log.Debug( myIP.String() + " => State: A1, RCV Aggregate -> done()")
                     CleanupTheHouse()
 
                 } else if payload.Type == packet.TimeoutType { // timeout -> SND AggregateRoute // not today
                     // state = A2 // it should do this, but not today
-                    log.Info( myIP.String() + " => State: A1, timeout() -> SND AggregateRoute")
+                    log.Debug( myIP.String() + " => State: A1, timeout() -> SND AggregateRoute")
                     CleanupTheHouse()
 
                     if rootNode { // Just to show something
@@ -380,7 +380,7 @@ func selectLeaderOfTheManet() {
 
         js, err := json.Marshal(payload)
         utils.CheckError(err, log)
-        log.Info("Initial JSON " + string(js))
+        log.Debug("Initial JSON " + string(js))
         buffer <- string(js)
     }
 }
@@ -428,7 +428,11 @@ func main() {
     backend := logging.NewLogBackend(f, "", 0)
     backendFormatter := logging.NewBackendFormatter(backend, format)
 
-    logging.SetBackend(backendFormatter)
+    // Only errors and more severe messages should be sent to backend1
+    backendLeveled := logging.AddModuleLevel(backendFormatter)
+    backendLeveled.SetLevel(logging.INFO, "")
+
+    logging.SetBackend(backendLeveled)
     log.Info("Starting Treesip process, waiting some time to get my own IP...")
     // ------------
 
