@@ -80,7 +80,7 @@ var done = make(chan bool)
 
 
 func StartTimer() {
-    timer = timing.Timeout(timeout, timer)
+    timer = timing.Timeout(timeout, timer, r1)
 
     go func() {
         <- timer.C
