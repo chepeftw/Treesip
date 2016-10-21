@@ -84,7 +84,7 @@ func StartTimer() {
 
     go func() {
         <- timer.C
-        buffer <- "{\"type\":\"" + packet.TimeoutType + "\"}"
+        buffer <- packet.AssembleTimeout()
         log.Info("Timer expired")
     }()
 }
@@ -202,12 +202,13 @@ func attendBufferChannel() {
             case Q1: 
                 // RCV QueryACK -> acc(ACK_IP)
                 if payload.Type == packet.QueryType && payload.Parent.Equal(myIP) && !payload.Source.Equal(myIP) {
-                    log.Info( myIP.String() + " => State: Q1, RCV QueryACK -> acc( " + payload.Source.String() + " )-> " + strconv.Itoa( len( queryACKlist ) ) )
-
                     state = Q2
                     queryACKlist = append(queryACKlist, payload.Source)
 
                     StopTimer()
+
+                    log.Info( myIP.String() + " => State: Q1, RCV QueryACK -> acc( " + payload.Source.String() + " )-> " + strconv.Itoa( len( queryACKlist ) ) )
+
                 } else if payload.Type == packet.TimeoutType { // timeout()/edgeNode() -> SND Aggregate
                     log.Info( myIP.String() + " => State: Q1, timeout() -> SND Aggregate")
 
@@ -223,10 +224,10 @@ func attendBufferChannel() {
             case Q2:
                 // RCV QueryACK -> acc(ACK_IP)
                 if payload.Type == packet.QueryType && payload.Parent.Equal(myIP) && !payload.Source.Equal(myIP) {
-                    log.Info( myIP.String() + " => State: Q2, RCV QueryACK -> acc( " + payload.Source.String() + " )-> " + strconv.Itoa( len( queryACKlist ) ))
-
                     state = Q2 // loop to stay in Q2
                     queryACKlist = append(queryACKlist, payload.Source)
+
+                    log.Info( myIP.String() + " => State: Q2, RCV QueryACK -> acc( " + payload.Source.String() + " ) -> " + strconv.Itoa( len( queryACKlist ) ))
 
                 } else if payload.Type == packet.AggregateType && payload.Aggregate.Destination.Equal(myIP) { // RCV Aggregate -> SND Aggregate 
                     // not always but yes

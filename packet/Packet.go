@@ -62,6 +62,14 @@ func calculateRelaySet( newItem net.IP, receivedRelaySet []*net.IP ) []*net.IP {
 }
 
 
+func AssembleTimeout() Packet {
+    payload := Packet{
+        Type: TimeoutType
+    }
+
+    return payload
+}
+
 func AssembleAggregate(dest net.IP, out float32, obs int, dad net.IP, me net.IP, tmo int) Packet {
     aggregate := Aggregate{
             Destination: dest,
