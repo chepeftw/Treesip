@@ -376,7 +376,7 @@ func selectLeaderOfTheManet() {
         }
 
         log.Info("The leader has been chosen!!! All hail the new KING!!! " + neo)
-        time.Sleep(time.Second * 5)
+        time.Sleep(time.Second * 3)
 
         js, err := json.Marshal(payload)
         utils.CheckError(err, log)
