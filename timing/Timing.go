@@ -17,7 +17,7 @@ func Timeout(d int, timer *time.Timer) *time.Timer {
 }
 
 func StopTimeout(timer *time.Timer) {
-    if &timer != nil {
+    if timer != nil {
         timer.Stop()
     }
 }
