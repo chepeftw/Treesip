@@ -391,19 +391,15 @@ func main() {
     if nnodes := os.Getenv("NNODES"); nnodes != "" {
         globalNumberNodes, _ = strconv.Atoi( nnodes )
     }
-
     if ntimeout := os.Getenv("NTIMEOUT"); ntimeout != "" {
         externalTimeout, _ = strconv.Atoi( ntimeout )
     }
-
     if rootn := os.Getenv("ROOTN"); rootn != "" {
         electionNode = rootn
     }
-
     if fsmmode := os.Getenv("FSMMODE"); fsmmode != "" {
         runMode = fsmmode
     }
-
     targetSync := float64(0)
     if tsync := os.Getenv("TARGETSYNC"); tsync != "" {
         targetSync, _ = strconv.ParseFloat(tsync, 64)
@@ -421,17 +417,12 @@ func main() {
     if err != nil {
         fmt.Printf("error opening file: %v", err)
     }
-
-    // don't forget to close it
     defer f.Close()
 
     backend := logging.NewLogBackend(f, "", 0)
     backendFormatter := logging.NewBackendFormatter(backend, format)
-
-    // Only errors and more severe messages should be sent to backend1
     backendLeveled := logging.AddModuleLevel(backendFormatter)
-    backendLeveled.SetLevel(logging.INFO, "")
-
+    backendLeveled.SetLevel(logging.DEBUG, "")
     logging.SetBackend(backendLeveled)
     log.Info("Starting Treesip process, waiting some time to get my own IP...")
     // ------------
@@ -481,6 +472,7 @@ func main() {
     }
 
     close(buffer)
+    close(output)
 
     <-done
 }
