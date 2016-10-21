@@ -362,11 +362,10 @@ func selectLeaderOfTheManet() {
         payload := packet.Packet{
             Type: packet.StartType,
             Source: myIP,
-            Timeout: 1000,
+            Timeout: 800,
             Query: &query,
         }
 
-        time.Sleep(time.Second * 3)
         log.Info("The leader has been chosen!!! All hail the new KING!!! " + neo)
         time.Sleep(time.Second * 3)
 
