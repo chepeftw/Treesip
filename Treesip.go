@@ -59,6 +59,7 @@ var rootNode bool = false
 var startTime int64 = 0
 
 var globalNumberNodes int = 0
+var externalTimeout int = 0
 var globalCounter int = 0
 var electionNode string = ""
 var runMode string = ""
@@ -359,10 +360,15 @@ func selectLeaderOfTheManet() {
                 RelaySet: []*net.IP{},
             }
 
+        calculatedTimeout := 800
+        if externalTimeout > 0 {
+            calculatedTimeout = externalTimeout
+        }
+
         payload := packet.Packet{
             Type: packet.StartType,
             Source: myIP,
-            Timeout: 800,
+            Timeout: calculatedTimeout,
             Query: &query,
         }
 
@@ -371,7 +377,7 @@ func selectLeaderOfTheManet() {
 
         js, err := json.Marshal(payload)
         utils.CheckError(err, log)
-
+        log.Info("Initial JSON " + string(js))
         output <- string(js)
     }
 }
@@ -381,6 +387,10 @@ func main() {
 
     if nnodes := os.Getenv("NNODES"); nnodes != "" {
         globalNumberNodes, _ = strconv.Atoi( nnodes )
+    }
+
+    if ntimeout := os.Getenv("NTIMEOUT"); ntimeout != "" {
+        externalTimeout, _ = strconv.Atoi( ntimeout )
     }
 
     if rootn := os.Getenv("ROOTN"); rootn != "" {
