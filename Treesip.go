@@ -270,7 +270,7 @@ func attendBufferChannel() {
                         observations = observations + 1
 
                         SendAggregate(parentIP, accumulator, observations)
-                        StartTimer()
+                        // StartTimer()
 
                         log.Debug("if len(queryACKlist) == 0 && !rootNode")
 
@@ -298,7 +298,6 @@ func attendBufferChannel() {
                     if rootNode { // Just to show something
                         LogSuccess() // Suuuuuuucceeeeess!!!
                     }
-
                     CleanupTheHouse()
                 }
             break
