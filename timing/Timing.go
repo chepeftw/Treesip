@@ -12,7 +12,7 @@ var r1 = rand.New(s1)
 func Timeout(d int, timer *time.Timer) *time.Timer {
 	StopTimeout(timer)
 	duration := float32(r1.Intn(d*1000)/1000)
-    timeout := time.NewTimer(time.Millisecond * time.Duration(duration))
+    timeout := time.NewTimer(time.Millisecond * time.Duration(500+duration))
     return timeout
 }
 
