@@ -84,7 +84,9 @@ func StartTimer() {
 
     go func() {
         <- timer.C
-        buffer <- packet.AssembleTimeout()
+        js, err := json.Marshal(packet.AssembleTimeout())
+        utils.CheckError(err, log)
+        buffer <- string(js)
         log.Info("Timer expired")
     }()
 }
