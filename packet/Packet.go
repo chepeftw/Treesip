@@ -25,11 +25,15 @@ const (
 // +++++++++ Packet structure
 type Packet struct {
     Type      string        `json:"tp"`
-    Parent    net.IP        `json:"prnt"`
-    Source    net.IP        `json:"src"`
-    Timeout   int           `json:"tmo"`
-    Query     *Query        `json:"qry,omitempty"`
-    Aggregate *Aggregate    `json:"agt,omitempty"`
+
+    Parent       net.IP     `json:"prnt,omitempty"`
+    Source       net.IP     `json:"src"`
+    Destination  net.IP     `json:"dst,omitempty"`
+    Gateway      net.IP     `json:"gw,omitempty"`
+
+    Timeout      int        `json:"tmo"`
+    Query        *Query     `json:"qry,omitempty"`
+    Aggregate    *Aggregate `json:"agt,omitempty"`
 
     Timestamp    string     `json:"ts,omitempty"`
     TimeToLive   int        `json:"ttl,omitempty"`
@@ -42,8 +46,6 @@ type Query struct {
 }
 
 type Aggregate struct {
-    Destination  net.IP `json:"dst,omitempty"`
-    Gateway      net.IP `json:"gw,omitempty"`
     Outcome      float32 `json:"otc,omitempty"`
     Observations int    `json:"obs,omitempty"`
 }
@@ -70,9 +72,8 @@ func AssembleTimeout() Packet {
     return payload
 }
 
-func AssembleAggregate(dest net.IP, out float32, obs int, dad net.IP, me net.IP, tmo int) Packet {
+func AssembleAggregate(dest net.IP, out float32, obs int, dad net.IP, me net.IP, tmo int, stamp string) Packet {
     aggregate := Aggregate{
-            Destination: dest,
             Outcome: out,
             Observations: obs,
         }
@@ -81,7 +82,9 @@ func AssembleAggregate(dest net.IP, out float32, obs int, dad net.IP, me net.IP,
         Type: AggregateType,
         Parent: dad,
         Source: me,
+        Destination: dest,
         Timeout: tmo,
+        Timestamp: stamp,
         Aggregate: &aggregate,
     }
 
@@ -105,6 +108,51 @@ func AssembleQuery(payloadIn Packet, dad net.IP, me net.IP) Packet {
         Source: me,
         Timeout: payloadIn.Timeout,
         Query: &query,
+    }
+
+    return payload
+}
+
+
+func AssembleHello(me net.IP, stamp string) Packet {
+    payload := Packet{
+        Type: HelloType,
+        Source: me,
+        Timestamp: stamp,
+    }
+
+    return payload
+}
+
+func AssembleHelloReply(payloadIn Packet, me net.IP) Packet {
+    payload := Packet{
+        Type: HelloReplyType,
+        Source: me,
+        Destination: payloadIn.Source,
+        Timestamp: payloadIn.Timestamp,
+    }
+
+    return payload
+}
+
+func AssembleRoute(gw net.IP, payloadIn Packet) Packet {
+
+    aggregate := Aggregate{
+            Outcome: payloadIn.Aggregate.Outcome,
+            Observations: payloadIn.Aggregate.Observations,
+        }
+
+    payload := Packet{
+        Type: RouteByGossipType,
+        Parent: payloadIn.Parent,
+        Source: payloadIn.Source,
+        Destination: payloadIn.Destination,
+        Gateway: gw,
+        Timeout: payloadIn.Timeout,
+        Timestamp: payloadIn.Timestamp,
+        // TimeToLive: payloadIn.TimeToLive-1,
+        Hops: payloadIn.Hops+1,
+        Aggregate: &aggregate,
     }
 
     return payload

@@ -5,6 +5,7 @@ import (
     "fmt"
     "net"
     "time"
+    "strings"
     "strconv"
     "math/rand"
     "encoding/json"
@@ -95,18 +96,25 @@ func StopTimer() {
 }
 
 
+func SendHello(stamp string) {
+    SendMessage( packet.AssembleHello(myIP, stamp) )
+}
+func SendHelloReply(payload packet.Packet) {
+    SendMessage( packet.AssembleHelloReply(payload, myIP) )
+}
+func SendRoute(gateway net.IP, payloadIn packet.Packet) {
+    SendMessage( packet.AssembleRoute(gateway, payloadIn) )
+}
 func SendQuery(payload packet.Packet) {
-    queryPayload := packet.AssembleQuery(payload, parentIP, myIP)
-    SendMessage(queryPayload)
+    SendMessage( packet.AssembleQuery(payload, parentIP, myIP) )
 }
 func SendAggregate(destination net.IP, outcome float32, observations int) {
-    aggregatePayload := packet.AssembleAggregate(destination, outcome, observations, parentIP, myIP, timeout)
-    SendMessage(aggregatePayload)
+    stamp := strings.Replace(myIP.String(), ".", "", -1) + "_" + strconv.FormatInt(time.Now().UTC().UnixNano(), 10)
+    SendMessage( packet.AssembleAggregate(destination, outcome, observations, parentIP, myIP, timeout, stamp) )
 }
 func SendMessage(payload packet.Packet) {
     js, err := json.Marshal(payload)
     utils.CheckError(err, log)
-
     output <- string(js)
 }
 
@@ -167,154 +175,195 @@ func CleanupTheHouse() {
     go selectLeaderOfTheManet()
 }
 
+
 // Function that handles the buffer channel
 func attendBufferChannel() {
-    for {
-        j, more := <-buffer
-        if more {
-            // First we take the json, unmarshal it to an object
-            payload := packet.Packet{}
-            json.Unmarshal([]byte(j), &payload)
+fsm := true
+for {
+    j, more := <-buffer
+    if more {
+        // First we take the json, unmarshal it to an object
+        payload := packet.Packet{}
+        json.Unmarshal([]byte(j), &payload)
 
-            // Now we start! FSM TIME!
-            switch state {
-            case INITIAL:
-                // RCV start() -> SND Query
-                if payload.Type == packet.StartType {
-                    startTime = time.Now().UnixNano() // Start time of the monitoring process
-                    state = Q1 // Moving to Q1 state
-                    parentIP = nil
-                    timeout = payload.Timeout
-
-                    SendQuery(payload)
-                    StartTimer()
-
-                    log.Info( myIP.String() + " => State: INITIAL, start() -> SND Query")
-
-                } else if payload.Type == packet.QueryType { // RCV Query -> SND Query
-                    state = Q1 // Moving to Q1 state
-                    parentIP = payload.Source
-                    timeout = payload.Timeout
-
-                    SendQuery(payload)
-                    StartTimer()
-
-                    log.Info(myIP.String() + " => State: INITIAL, RCV Query -> SND Query")
+        // Exclusive to the gossip routing protocol
+        fsm = false
+        if payload.Type == packet.HelloType {
+            if myIP.String() != payload.Source.String() {
+                if utils.Contains(ForwardedMessages, payload.Timestamp) {
+                    time.Sleep(time.Duration((r1.Intn(19000)+1000)/100) * time.Millisecond)
                 }
-            break
-            case Q1: 
-                // RCV QueryACK -> acc(ACK_IP)
-                if payload.Type == packet.QueryType && payload.Parent.Equal(myIP) && !payload.Source.Equal(myIP) {
-                    state = Q2
-                    queryACKlist = append(queryACKlist, payload.Source)
-
-                    StopTimer()
-
-                    log.Debug( myIP.String() + " => State: Q1, RCV QueryACK -> acc( " + payload.Source.String() + " )-> " + strconv.Itoa( len( queryACKlist ) ) )
-
-                } else if payload.Type == packet.TimeoutType { // timeout()/edgeNode() -> SND Aggregate
-                    state = A1
-
-                    // Just one outcome and 1 observation because it should be the end of a branch
-                    accumulator = manet.FunctionValue(accumulator)
-                    observations = 1
-                    SendAggregate(parentIP, accumulator, observations)
-                    StartTimer()
-
-                    log.Debug( myIP.String() + " => State: Q1, timeout() -> SND Aggregate")
-                }
-            break
-            case Q2:
-                // RCV QueryACK -> acc(ACK_IP)
-                if payload.Type == packet.QueryType && payload.Parent.Equal(myIP) && !payload.Source.Equal(myIP) {
-                    state = Q2 // loop to stay in Q2
-                    queryACKlist = append(queryACKlist, payload.Source)
-
-                    log.Debug( myIP.String() + " => State: Q2, RCV QueryACK -> acc( " + payload.Source.String() + " ) -> " + strconv.Itoa( len( queryACKlist ) ))
-
-                } else if payload.Type == packet.AggregateType && payload.Aggregate.Destination.Equal(myIP) { // RCV Aggregate -> SND Aggregate 
-                    // not always but yes
-                    // I check that the parent it is itself, that means that he already stored this guy
-                    // in the queryACKList
-                    state = A1
-                    queryACKlist = utils.RemoveFromList(payload.Source, queryACKlist)
-
-                    StopTimer()
-                    accumulator, observations  = manet.AggregateValue( payload.Aggregate.Outcome, payload.Aggregate.Observations, accumulator, observations)
-
-                    if len(queryACKlist) == 0 {
-                        accumulator = manet.FunctionValue(accumulator)
-                        observations = observations + 1
-                        SendAggregate(parentIP, accumulator, observations)
-                        StartTimer()
-                    }
-
-                    log.Debug( myIP.String() + " => State: Q2, RCV Aggregate -> SND Aggregate remove " + payload.Source.String() + " -> " + strconv.Itoa( len( queryACKlist ) ))
-                }
-            break
-            case A1:
-                // RCV Aggregate -> SND Aggregate // not always but yes
-                // I check that the parent it is itself, that means that he already stored this guy
-                // in the queryACKList
-                if payload.Type == packet.AggregateType && payload.Aggregate.Destination.Equal(myIP) {
-                    state = A1
-                    queryACKlist = utils.RemoveFromList(payload.Source, queryACKlist)
-
-                    StopTimer()
-                    accumulator, observations  = manet.AggregateValue( payload.Aggregate.Outcome, payload.Aggregate.Observations, accumulator, observations)
-
-                    log.Debug( myIP.String() + " => State: A1, RCV Aggregate & loop() -> SND Aggregate " + payload.Source.String() + " -> " + strconv.Itoa(len(queryACKlist)))
-
-                    if len(queryACKlist) == 0 && !rootNode {
-                        accumulator = manet.FunctionValue(accumulator)
-                        observations = observations + 1
-
-                        SendAggregate(parentIP, accumulator, observations)
-                        // StartTimer()
-
-                        log.Debug("if len(queryACKlist) == 0 && !rootNode")
-
-                    } else if len(queryACKlist) == 0 && rootNode { // WE ARE DONE!!!!
-                        accumulator = manet.FunctionValue(accumulator)
-                        observations = observations + 1
-
-                        SendAggregate(myIP, accumulator, observations) // Just for ACK
-
-                        log.Debug("else if len(queryACKlist) == 0 && rootNode")
-                        LogSuccess() // Suuuuuuucceeeeess!!!
-                        CleanupTheHouse()
-                    } else {
-                        StartTimer()
-                    }
-
-                } else if payload.Type == packet.AggregateType && payload.Source.Equal(parentIP) { // RCV AggregateACK -> done()
-                    log.Debug( myIP.String() + " => State: A1, RCV Aggregate -> done()")
-                    CleanupTheHouse()
-
-                } else if payload.Type == packet.TimeoutType { // timeout -> SND AggregateRoute // not today
-                    // state = A2 // it should do this, but not today
-                    log.Debug( myIP.String() + " => State: A1, timeout() -> SND AggregateRoute")
-
-                    if rootNode { // Just to show something
-                        LogSuccess() // Suuuuuuucceeeeess!!!
-                    }
-                    CleanupTheHouse()
-                }
-            break
-            case A2:
-                // Not happening bro!
-            break
-            default:
-                // Welcome to Stranger Things ... THIS REALLY SHOULD NOT HAPPEN
-            break
+                SendHelloReply(payload)
             }
 
+        } else if payload.Type == packet.HelloReplyType {
+            if myIP.String() == payload.Destination.String() {
+                stamp := payload.Timestamp
+
+                if _, ok := RouterWaitRoom[stamp]; ok {
+                    SendRoute(payload.Source, RouterWaitRoom[stamp])
+                    ForwardedMessages = append(ForwardedMessages, stamp)
+                    if len(ForwardedMessages) > 100 {
+                        ForwardedMessages = ForwardedMessages[len(ForwardedMessages)-100:]
+                    }
+                    delete(RouterWaitRoom, stamp)
+
+                    log.Debug(myIP.String() + " => HELLO_REPLY from " + payload.Source.String())
+                }
+            }
+
+        } else if payload.Type == packet.RouteByGossipType {
+            if myIP.String() == payload.Gateway.String() {
+                if myIP.String() != payload.Destination.String() {
+                    RouterWaitRoom[payload.Timestamp] = payload
+
+                    SendHello(payload.Timestamp)
+
+                    log.Debug(myIP.String() + " => Routing from " + payload.Source.String())
+                       
+                } else {
+                    fsm = true
+                    log.Debug(myIP.String() + " SUCCESS ROUTE -> Timestamp: " + payload.Timestamp +" from " + payload.Source.String() + " after " + strconv.Itoa(payload.Hops) + " hops")
+                    log.Info(myIP.String() + " => SUCCESS_ROUTE=1")
+                }
+            }
         } else {
-            log.Debug("closing channel")
-            done <- true
-            return
+            fsm = true
         }
+
+
+
+        // Now we start! FSM TIME!
+        if fsm {
+        switch state {
+        case INITIAL:
+            // RCV start() -> SND Query
+            if payload.Type == packet.StartType {
+                startTime = time.Now().UnixNano() // Start time of the monitoring process
+            }
+
+            if payload.Type == packet.StartType || payload.Type == packet.QueryType {
+                state = Q1 // Moving to Q1 state
+                parentIP = payload.Source
+                timeout = payload.Timeout
+
+                SendQuery(payload)
+                StartTimer()
+
+                log.Debug(myIP.String() + " => State: INITIAL, RCV Query -> SND Query")
+                log.Info( myIP.String() + " => START_QUERY=1")
+
+            }
+        break
+        case Q1: 
+            // RCV QueryACK -> acc(ACK_IP)
+            if payload.Type == packet.QueryType && payload.Parent.Equal(myIP) && !payload.Source.Equal(myIP) {
+                state = Q2
+                queryACKlist = append(queryACKlist, payload.Source)
+
+                StopTimer()
+
+                log.Debug( myIP.String() + " => State: Q1, RCV QueryACK -> acc( " + payload.Source.String() + " )-> " + strconv.Itoa( len( queryACKlist ) ) )
+
+            } else if payload.Type == packet.TimeoutType { // timeout()/edgeNode() -> SND Aggregate
+                state = A1
+
+                // Just one outcome and 1 observation because it should be the end of a branch
+                accumulator = manet.FunctionValue(accumulator)
+                observations = 1
+                SendAggregate(parentIP, accumulator, observations)
+                StartTimer()
+
+                log.Debug( myIP.String() + " => State: Q1, timeout() -> SND Aggregate")
+            }
+        break
+        case Q2:
+            // RCV QueryACK -> acc(ACK_IP)
+            if payload.Type == packet.QueryType && payload.Parent.Equal(myIP) && !payload.Source.Equal(myIP) {
+                state = Q2 // loop to stay in Q2
+                queryACKlist = append(queryACKlist, payload.Source)
+
+                log.Debug( myIP.String() + " => State: Q2, RCV QueryACK -> acc( " + payload.Source.String() + " ) -> " + strconv.Itoa( len( queryACKlist ) ))
+
+            } else if payload.Type == packet.AggregateType && payload.Destination.Equal(myIP) { // RCV Aggregate -> SND Aggregate 
+                // not always but yes
+                // I check that the parent it is itself, that means that he already stored this guy
+                // in the queryACKList
+                state = A1
+                queryACKlist = utils.RemoveFromList(payload.Source, queryACKlist)
+
+                StopTimer()
+                accumulator, observations  = manet.AggregateValue( payload.Aggregate.Outcome, payload.Aggregate.Observations, accumulator, observations)
+
+                if len(queryACKlist) == 0 {
+                    accumulator = manet.FunctionValue(accumulator)
+                    observations = observations + 1
+                    SendAggregate(parentIP, accumulator, observations)
+                    StartTimer()
+                }
+
+                log.Debug( myIP.String() + " => State: Q2, RCV Aggregate -> SND Aggregate remove " + payload.Source.String() + " -> " + strconv.Itoa( len( queryACKlist ) ))
+            }
+        break
+        case A1:
+            // RCV Aggregate -> SND Aggregate // not always but yes
+            // I check that the parent it is itself, that means that he already stored this guy
+            // in the queryACKList
+            if payload.Type == packet.AggregateType && payload.Destination.Equal(myIP) {
+                state = A1
+                queryACKlist = utils.RemoveFromList(payload.Source, queryACKlist)
+
+                StopTimer()
+                accumulator, observations  = manet.AggregateValue( payload.Aggregate.Outcome, payload.Aggregate.Observations, accumulator, observations)
+
+                log.Debug( myIP.String() + " => State: A1, RCV Aggregate & loop() -> SND Aggregate " + payload.Source.String() + " -> " + strconv.Itoa(len(queryACKlist)))
+
+                if len(queryACKlist) == 0 {
+                    accumulator = manet.FunctionValue(accumulator)
+                    observations = observations + 1
+
+                    SendAggregate(parentIP, accumulator, observations)
+                    // StartTimer()
+
+                    log.Debug("if len(queryACKlist) == 0")
+
+                    if rootNode { // WE ARE DONE!!!!
+                        LogSuccess() // Suuuuuuucceeeeess!!!
+                        CleanupTheHouse()
+                    }
+                } else {
+                    // StartTimer()
+                }
+
+            } else if payload.Type == packet.AggregateType && payload.Source.Equal(parentIP) { // RCV AggregateACK -> done()
+                log.Debug( myIP.String() + " => State: A1, RCV Aggregate -> done()")
+                CleanupTheHouse()
+
+            } else if payload.Type == packet.TimeoutType { // timeout -> SND AggregateRoute // not today
+                // state = A2 // it should do this, but not today
+                log.Debug( myIP.String() + " => State: A1, timeout() -> SND AggregateRoute")
+
+                if rootNode { // Just to show something
+                    LogSuccess() // Suuuuuuucceeeeess!!!
+                }
+                CleanupTheHouse()
+            }
+        break
+        case A2:
+            // Not happening bro!
+        break
+        default:
+            // Welcome to Stranger Things ... THIS REALLY SHOULD NOT HAPPEN
+        break
+        }
+        }
+
+    } else {
+        log.Debug("closing channel")
+        done <- true
+        return
     }
+}
 }
 
 // This function selects the Root node, the source, the NEO!
