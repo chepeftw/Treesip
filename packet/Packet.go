@@ -136,24 +136,29 @@ func AssembleHelloReply(payloadIn Packet, me net.IP) Packet {
 }
 
 func AssembleRoute(gw net.IP, payloadIn Packet) Packet {
+    // aggregate := Aggregate{
+    //         Outcome: payloadIn.Aggregate.Outcome,
+    //         Observations: payloadIn.Aggregate.Observations,
+    //     }
 
-    aggregate := Aggregate{
-            Outcome: payloadIn.Aggregate.Outcome,
-            Observations: payloadIn.Aggregate.Observations,
-        }
+    // payload := Packet{
+    //     Type: RouteByGossipType,
+    //     Parent: payloadIn.Parent,
+    //     Source: payloadIn.Source,
+    //     Destination: payloadIn.Destination,
+    //     Gateway: gw,
+    //     Timeout: payloadIn.Timeout,
+    //     Timestamp: payloadIn.Timestamp,
+    //     // TimeToLive: payloadIn.TimeToLive-1,
+    //     Hops: payloadIn.Hops+1,
+    //     Aggregate: &aggregate,
+    // }
 
-    payload := Packet{
-        Type: RouteByGossipType,
-        Parent: payloadIn.Parent,
-        Source: payloadIn.Source,
-        Destination: payloadIn.Destination,
-        Gateway: gw,
-        Timeout: payloadIn.Timeout,
-        Timestamp: payloadIn.Timestamp,
-        // TimeToLive: payloadIn.TimeToLive-1,
-        Hops: payloadIn.Hops+1,
-        Aggregate: &aggregate,
-    }
+    payload := payloadIn
+
+    payload.Gateway = gw
+    // payload.TimeToLive = payloadIn.TimeToLive-1
+    payload.Hops = payloadIn.Hops+1
 
     return payload
 }

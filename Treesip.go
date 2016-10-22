@@ -341,12 +341,16 @@ for {
 
             } else if payload.Type == packet.TimeoutType { // timeout -> SND AggregateRoute // not today
                 // state = A2 // it should do this, but not today
+                
+                RouterWaitRoom[payload.Timestamp] = payload
+                SendHello(payload.Timestamp)
+
                 log.Debug( myIP.String() + " => State: A1, timeout() -> SND AggregateRoute")
 
-                if rootNode { // Just to show something
-                    LogSuccess() // Suuuuuuucceeeeess!!!
-                }
-                CleanupTheHouse()
+                // if rootNode { // Just to show something
+                //     LogSuccess() // Suuuuuuucceeeeess!!!
+                // }
+                // CleanupTheHouse()
             }
         break
         case A2:
