@@ -8,30 +8,30 @@ import (
 
 // +++++++++ Constants
 const (
-    StartType         = "start"
-    TimeoutType       = "timeout"
-    QueryType         = "query"
-    AggregateType     = "aggregate"
-    AggregateFwdType  = "aggregateForward"
-    AggregateRteType  = "aggregateRoute"
+    StartType = iota
+    TimeoutType
+    QueryType
+    AggregateType
+    AggregateFwdType
+    AggregateRteType
 
-    HelloType         = "hello"
-    HelloReplyType    = "helloReply"
-    RouteByTableType  = "routeByTable"
-    RouteByGossipType = "routeByGossip"
+    HelloType
+    HelloReplyType
+    RouteByTableType
+    RouteByGossipType
 )
 
 
 // +++++++++ Packet structure
 type Packet struct {
-    Type      string        `json:"tp"`
+    Type      int        `json:"tp"`
 
     Parent       net.IP     `json:"prnt,omitempty"`
-    Source       net.IP     `json:"src"`
+    Source       net.IP     `json:"src,omitempty"`
     Destination  net.IP     `json:"dst,omitempty"`
     Gateway      net.IP     `json:"gw,omitempty"`
 
-    Timeout      int        `json:"tmo"`
+    Timeout      int        `json:"tmo,omitempty"`
     Query        *Query     `json:"qry,omitempty"`
     Aggregate    *Aggregate `json:"agt,omitempty"`
 
