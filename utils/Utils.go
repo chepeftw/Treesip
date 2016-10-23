@@ -47,6 +47,16 @@ func Contains(s []string, e string) bool {
     return false
 }
 
+// There should be a better way to do this, since this resembles to the upper function
+func ContainsIP(s []net.IP, e net.IP) bool {
+    for _, a := range s {
+        if a.String() == e.String() {
+            return true
+        }
+    }
+    return false
+}
+
 func RemoveFromList(del net.IP, list []net.IP) []net.IP {
     index := -1
     for i, b := range list {

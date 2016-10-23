@@ -329,30 +329,33 @@ for {
             // RCV Aggregate -> SND Aggregate // not always but yes
             // I check that the parent it is itself, that means that he already stored this guy
             // in the queryACKList
-            if payload.Type == packet.AggregateType && payload.Destination.Equal(myIP) {
-                state = A1
-                queryACKlist = utils.RemoveFromList(payload.Source, queryACKlist)
+            if ( payload.Type == packet.AggregateType || payload.Type == packet.RouteByGossipType ) && payload.Destination.Equal(myIP) {
+                if utils.ContainsIP(queryACKlist, payload.Source) {
+                    state = A1
+                    queryACKlist = utils.RemoveFromList(payload.Source, queryACKlist)
 
-                StopTimer()
-                accumulator, observations  = manet.AggregateValue( payload.Aggregate.Outcome, payload.Aggregate.Observations, accumulator, observations)
+                    StopTimer()
+                    accumulator, observations  = manet.AggregateValue( payload.Aggregate.Outcome, payload.Aggregate.Observations, accumulator, observations)
 
-                log.Debug( myIP.String() + " => State: A1, RCV Aggregate & loop() -> SND Aggregate " + payload.Source.String() + " -> " + strconv.Itoa(len(queryACKlist)))
+                    log.Debug( myIP.String() + " => State: A1, RCV Aggregate & loop() -> SND Aggregate " + payload.Source.String() + " -> " + strconv.Itoa(len(queryACKlist)))
 
-                if len(queryACKlist) == 0 {
-                    accumulator = manet.FunctionValue(accumulator)
-                    observations = observations + 1
+                    if len(queryACKlist) == 0 {
+                        accumulator = manet.FunctionValue(accumulator)
+                        observations = observations + 1
 
-                    SendAggregate(parentIP, accumulator, observations)
-                    // StartTimer()
+                        SendAggregate(parentIP, accumulator, observations)
+                        // StartTimer()
 
-                    log.Debug("if len(queryACKlist) == 0")
+                        log.Debug("if len(queryACKlist) == 0")
 
-                    if rootNode { // WE ARE DONE!!!!
-                        LogSuccess() // Suuuuuuucceeeeess!!!
-                        CleanupTheHouse()
+                        if rootNode { // WE ARE DONE!!!!
+                            LogSuccess() // Suuuuuuucceeeeess!!!
+                            CleanupTheHouse()
+                        }
+                    } else {
+                        // StartTimer()
                     }
-                } else {
-                    // StartTimer()
+
                 }
 
             } else if payload.Type == packet.AggregateType && payload.Source.Equal(parentIP) { // RCV AggregateACK -> done()
@@ -360,7 +363,7 @@ for {
                 CleanupTheHouse()
 
             } else if payload.Type == packet.TimeoutType { // timeout -> SND AggregateRoute // not today
-                // state = A2 // it should do this, but not today
+                state = A2 // it should do this, but not today
                 
                 payloadRefurbish := helperAggregatePacket( parentIP, accumulator, observations )
                 RouterWaitRoom[payloadRefurbish.Timestamp] = payloadRefurbish
