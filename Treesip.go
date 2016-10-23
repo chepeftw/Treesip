@@ -150,8 +150,8 @@ func attendOutputChannel() {
             if Conn != nil {
                 buf := []byte(j)
                 _,err = Conn.Write(buf)
-                log.Info( myIP.String() + " " + j + " MESSAGE_SIZE=" + strconv.Itoa(len(buf)) )
-                // log.Info( myIP.String() + " MESSAGE_SIZE=" + strconv.Itoa(len(buf)) )
+                // log.Debug( myIP.String() + " " + j + " MESSAGE_SIZE=" + strconv.Itoa(len(buf)) )
+                log.Info( myIP.String() + " MESSAGE_SIZE=" + strconv.Itoa(len(buf)) )
                 log.Info( myIP.String() + " SENDING_MESSAGE=1" )
                 utils.CheckError(err, log)
             }
@@ -330,6 +330,10 @@ for {
             // I check that the parent it is itself, that means that he already stored this guy
             // in the queryACKList
             if ( payload.Type == packet.AggregateType || payload.Type == packet.RouteByGossipType ) && payload.Destination.Equal(myIP) {
+                if payload.Type == packet.RouteByGossipType {
+                        log.Debug( myIP.String() + " Incoming routing => " + j)
+                }
+
                 if utils.ContainsIP(queryACKlist, payload.Source) {
                     state = A1
                     queryACKlist = utils.RemoveFromList(payload.Source, queryACKlist)
