@@ -109,8 +109,11 @@ func SendQuery(payload packet.Packet) {
     SendMessage( packet.AssembleQuery(payload, parentIP, myIP) )
 }
 func SendAggregate(destination net.IP, outcome float32, observations int) {
+    SendMessage( helperAggregatePacket( destination, outcome, observations ) )
+}
+func helperAggregatePacket(destination net.IP, outcome float32, observations int) packet.Packet {
     stamp := strings.Replace(myIP.String(), ".", "", -1) + "_" + strconv.FormatInt(time.Now().UTC().UnixNano(), 10)
-    SendMessage( packet.AssembleAggregate(destination, outcome, observations, parentIP, myIP, timeout, stamp) )
+    return packet.AssembleAggregate(destination, outcome, observations, parentIP, myIP, timeout, stamp)
 }
 func SendMessage(payload packet.Packet) {
     js, err := json.Marshal(payload)
@@ -342,8 +345,9 @@ for {
             } else if payload.Type == packet.TimeoutType { // timeout -> SND AggregateRoute // not today
                 // state = A2 // it should do this, but not today
                 
-                RouterWaitRoom[payload.Timestamp] = payload
-                SendHello(payload.Timestamp)
+                payloadRefurbish := helperAggregatePacket( parentIP, accumulator, observations )
+                RouterWaitRoom[payloadRefurbish.Timestamp] = payloadRefurbish
+                SendHello(payloadRefurbish.Timestamp)
 
                 log.Debug( myIP.String() + " => State: A1, timeout() -> SND AggregateRoute")
                 log.Debug( myIP.String() + " => " + string(j) )

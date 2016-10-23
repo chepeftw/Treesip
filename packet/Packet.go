@@ -156,6 +156,7 @@ func AssembleRoute(gw net.IP, payloadIn Packet) Packet {
 
     payload := payloadIn
 
+    payload.Type = RouteByGossipType
     payload.Gateway = gw
     // payload.TimeToLive = payloadIn.TimeToLive-1
     payload.Hops = payloadIn.Hops+1
