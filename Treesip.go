@@ -330,11 +330,12 @@ for {
             // I check that the parent it is itself, that means that he already stored this guy
             // in the queryACKList
             if ( payload.Type == packet.AggregateType || payload.Type == packet.RouteByGossipType ) && payload.Destination.Equal(myIP) {
-                if payload.Type == packet.RouteByGossipType {
-                        log.Debug( myIP.String() + " Incoming routing => " + j)
-                }
-
                 if utils.ContainsIP(queryACKlist, payload.Source) {
+
+                    if payload.Type == packet.RouteByGossipType {
+                            log.Debug( myIP.String() + " Incoming routing => " + j)
+                    }
+                    
                     state = A1
                     queryACKlist = utils.RemoveFromList(payload.Source, queryACKlist)
 
