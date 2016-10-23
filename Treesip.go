@@ -150,8 +150,8 @@ func attendOutputChannel() {
             if Conn != nil {
                 buf := []byte(j)
                 _,err = Conn.Write(buf)
-                log.Debug( myIP.String() + " => OUTPUT = " + j )
-                log.Info( myIP.String() + " MESSAGE_SIZE=" + strconv.Itoa(len(buf)) )
+                log.Info( myIP.String() + " " + j + " MESSAGE_SIZE=" + strconv.Itoa(len(buf)) )
+                // log.Info( myIP.String() + " MESSAGE_SIZE=" + strconv.Itoa(len(buf)) )
                 log.Info( myIP.String() + " SENDING_MESSAGE=1" )
                 utils.CheckError(err, log)
             }
