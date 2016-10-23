@@ -71,7 +71,9 @@ var r1 = rand.New(s1)
 // +++++++++ Routing Protocol
 var routes map[string]string = make(map[string]string)
 var RouterWaitRoom map[string]packet.Packet = make(map[string]packet.Packet)
+var RouterWaitCount map[string]int = make(map[string]int)
 var ForwardedMessages []string = []string{}
+var ReceivedMessages []string = []string{}
 
 // +++++++++ Channels
 var buffer = make(chan string)
@@ -204,15 +206,18 @@ for {
             if myIP.String() == payload.Destination.String() {
                 stamp := payload.Timestamp
 
-                if _, ok := RouterWaitRoom[stamp]; ok {
-                    SendRoute(payload.Source, RouterWaitRoom[stamp])
-                    ForwardedMessages = append(ForwardedMessages, stamp)
-                    if len(ForwardedMessages) > 100 {
-                        ForwardedMessages = ForwardedMessages[len(ForwardedMessages)-100:]
-                    }
-                    delete(RouterWaitRoom, stamp)
+                if _, ok := RouterWaitCount[stamp]; ok {
+                    if ( RouterWaitCount[stamp] == 1 && payload.Source.String() == RouterWaitRoom[stamp].Destination.String() ) || RouterWaitCount[stamp] == 0 {
+                        SendRoute(payload.Source, RouterWaitRoom[stamp])
+                        ForwardedMessages = append(ForwardedMessages, stamp)
+                        if len(ForwardedMessages) > 100 {
+                            ForwardedMessages = ForwardedMessages[len(ForwardedMessages)-100:]
+                        }
+                        // delete(RouterWaitRoom, stamp)
+                        RouterWaitCount[stamp] = 1
 
-                    log.Debug(myIP.String() + " => HELLO_REPLY from " + payload.Source.String())
+                        log.Debug(myIP.String() + " => HELLO_REPLY from " + payload.Source.String())
+                    }
                 }
             }
 
@@ -226,9 +231,19 @@ for {
                     log.Debug(myIP.String() + " => Routing from " + payload.Source.String())
                        
                 } else {
-                    fsm = true
-                    log.Debug(myIP.String() + " SUCCESS ROUTE -> Timestamp: " + payload.Timestamp +" from " + payload.Source.String() + " after " + strconv.Itoa(payload.Hops) + " hops")
-                    log.Info(myIP.String() + " => SUCCESS_ROUTE=1")
+                    if !utils.Contains(ReceivedMessages, payload.Timestamp) {
+                        fsm = true
+
+                        ReceivedMessages = append(ReceivedMessages, stamp)
+                        if len(ReceivedMessages) > 100 {
+                            ReceivedMessages = ReceivedMessages[len(ReceivedMessages)-100:]
+                        }
+
+                        log.Debug(myIP.String() + " SUCCESS ROUTE -> Timestamp: " + payload.Timestamp +" from " + payload.Source.String() + " after " + strconv.Itoa(payload.Hops) + " hops")
+                        log.Info(myIP.String() + " => SUCCESS_ROUTE=1")
+                    } else {
+                        log.Info(myIP.String() + " => SUCCESS_AGAIN_ROUTE=1")
+                    }
                 }
             }
         } else {
@@ -348,6 +363,7 @@ for {
                 
                 payloadRefurbish := helperAggregatePacket( parentIP, accumulator, observations )
                 RouterWaitRoom[payloadRefurbish.Timestamp] = payloadRefurbish
+                RouterWaitCount[payloadRefurbish.Timestamp] = 0
                 SendHello(payloadRefurbish.Timestamp)
 
                 log.Debug( myIP.String() + " => State: A1, timeout() -> SND AggregateRoute")
