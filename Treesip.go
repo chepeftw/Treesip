@@ -346,6 +346,7 @@ for {
                 SendHello(payload.Timestamp)
 
                 log.Debug( myIP.String() + " => State: A1, timeout() -> SND AggregateRoute")
+                log.Debug( myIP.String() + " => " + string(j) )
 
                 // if rootNode { // Just to show something
                 //     LogSuccess() // Suuuuuuucceeeeess!!!
