@@ -222,16 +222,17 @@ for {
             }
 
         } else if payload.Type == packet.RouteByGossipType {
+            stamp := payload.Timestamp
             if myIP.String() == payload.Gateway.String() {
                 if myIP.String() != payload.Destination.String() {
-                    RouterWaitRoom[payload.Timestamp] = payload
+                    RouterWaitRoom[stamp] = payload
 
-                    SendHello(payload.Timestamp)
+                    SendHello(stamp)
 
                     log.Debug(myIP.String() + " => Routing from " + payload.Source.String())
                        
                 } else {
-                    if !utils.Contains(ReceivedMessages, payload.Timestamp) {
+                    if !utils.Contains(ReceivedMessages, stamp) {
                         fsm = true
 
                         ReceivedMessages = append(ReceivedMessages, stamp)
@@ -239,7 +240,7 @@ for {
                             ReceivedMessages = ReceivedMessages[len(ReceivedMessages)-100:]
                         }
 
-                        log.Debug(myIP.String() + " SUCCESS ROUTE -> Timestamp: " + payload.Timestamp +" from " + payload.Source.String() + " after " + strconv.Itoa(payload.Hops) + " hops")
+                        log.Debug(myIP.String() + " SUCCESS ROUTE -> stamp: " + stamp +" from " + payload.Source.String() + " after " + strconv.Itoa(payload.Hops) + " hops")
                         log.Info(myIP.String() + " => SUCCESS_ROUTE=1")
                     } else {
                         log.Info(myIP.String() + " => SUCCESS_AGAIN_ROUTE=1")
