@@ -241,6 +241,7 @@ for {
                         }
 
                         log.Debug(myIP.String() + " SUCCESS ROUTE -> stamp: " + stamp +" from " + payload.Source.String() + " after " + strconv.Itoa(payload.Hops) + " hops")
+                        log.Debug(myIP.String() + " => " + j)
                         log.Info(myIP.String() + " => SUCCESS_ROUTE=1")
                     } else {
                         log.Info(myIP.String() + " => SUCCESS_AGAIN_ROUTE=1")
@@ -277,7 +278,9 @@ for {
         break
         case Q1: 
             // RCV QueryACK -> acc(ACK_IP)
-            if payload.Type == packet.QueryType && payload.Parent.Equal(myIP) && !payload.Source.Equal(myIP) {
+            if payload.Type == packet.QueryType && 
+                    payload.Parent.Equal(myIP) && !payload.Source.Equal(myIP) {
+
                 state = Q2
                 queryACKlist = append(queryACKlist, payload.Source)
 
@@ -300,13 +303,19 @@ for {
         break
         case Q2:
             // RCV QueryACK -> acc(ACK_IP)
-            if payload.Type == packet.QueryType && payload.Parent.Equal(myIP) && !payload.Source.Equal(myIP) {
+            if payload.Type == packet.QueryType && 
+                    payload.Parent.Equal(myIP) && 
+                    !payload.Source.Equal(myIP) {
+
                 state = Q2 // loop to stay in Q2
                 queryACKlist = append(queryACKlist, payload.Source)
 
                 log.Debug( myIP.String() + " => State: Q2, RCV QueryACK -> acc( " + payload.Source.String() + " ) -> " + strconv.Itoa( len( queryACKlist ) ))
 
-            } else if payload.Type == packet.AggregateType && payload.Destination.Equal(myIP) { // RCV Aggregate -> SND Aggregate 
+            } else if ( payload.Type == packet.AggregateType || 
+                    payload.Type == packet.RouteByGossipType ) && 
+                    payload.Destination.Equal(myIP) { // RCV Aggregate -> SND Aggregate 
+
                 // not always but yes
                 // I check that the parent it is itself, that means that he already stored this guy
                 // in the queryACKList
@@ -332,7 +341,10 @@ for {
             // RCV Aggregate -> SND Aggregate // not always but yes
             // I check that the parent it is itself, that means that he already stored this guy
             // in the queryACKList
-            if ( payload.Type == packet.AggregateType || payload.Type == packet.RouteByGossipType ) && payload.Destination.Equal(myIP) {
+            if ( payload.Type == packet.AggregateType || 
+                    payload.Type == packet.RouteByGossipType ) && 
+                    payload.Destination.Equal(myIP) {
+
                 if utils.ContainsIP(queryACKlist, payload.Source) {
 
                     if payload.Type == packet.RouteByGossipType {
@@ -367,7 +379,9 @@ for {
 
                 }
 
-            } else if payload.Type == packet.AggregateType && payload.Source.Equal(parentIP) { // RCV AggregateACK -> done()
+            } else if payload.Type == packet.AggregateType && 
+                    payload.Source.Equal(parentIP) { // RCV AggregateACK -> done()
+                        
                 log.Debug( myIP.String() + " => State: A1, RCV Aggregate -> done()")
                 CleanupTheHouse()
 
