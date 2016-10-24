@@ -200,6 +200,7 @@ for {
                     time.Sleep(time.Duration((r1.Intn(19000)+1000)/100) * time.Millisecond)
                 }
                 SendHelloReply(payload)
+                log.Debug(myIP.String() + " => Sending HELLO_REPLY to " + payload.Source.String())
             }
 
         } else if payload.Type == packet.HelloReplyType {
@@ -381,7 +382,7 @@ for {
 
             } else if payload.Type == packet.AggregateType && 
                     payload.Source.Equal(parentIP) { // RCV AggregateACK -> done()
-                        
+
                 log.Debug( myIP.String() + " => State: A1, RCV Aggregate -> done()")
                 CleanupTheHouse()
 
