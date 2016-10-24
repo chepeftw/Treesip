@@ -320,6 +320,7 @@ for {
                     observations = observations + 1
                     SendAggregate(parentIP, accumulator, observations)
                     log.Debug( myIP.String() + " => OBSERVATIONS=" + observations )
+                    
                     StartTimer()
                 }
 
