@@ -512,6 +512,13 @@ func main() {
     backendLeveled := logging.AddModuleLevel(backendFormatter)
     backendLeveled.SetLevel(logging.DEBUG, "")
     logging.SetBackend(backendLeveled)
+    log.Info("")
+    log.Info("")
+    log.Info("")
+    log.Info("------------------------------------------------------------------------")
+    log.Info("")
+    log.Info("")
+    log.Info("")
     log.Info("Starting Treesip process, waiting some time to get my own IP...")
     // ------------
 
