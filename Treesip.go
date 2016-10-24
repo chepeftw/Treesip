@@ -291,6 +291,7 @@ for {
                 // Just one outcome and 1 observation because it should be the end of a branch
                 accumulator = manet.FunctionValue(accumulator)
                 observations = 1
+                log.Debug( myIP.String() + " => OBSERVATIONS=1" )
                 SendAggregate(parentIP, accumulator, observations)
                 StartTimer()
 
@@ -318,8 +319,8 @@ for {
                 if len(queryACKlist) == 0 {
                     accumulator = manet.FunctionValue(accumulator)
                     observations = observations + 1
+                    log.Debug( myIP.String() + " => OBSERVATIONS=1" )
                     SendAggregate(parentIP, accumulator, observations)
-                    log.Debug( myIP.String() + " => OBSERVATIONS=" + strconv.Itoa(observations) )
 
                     StartTimer()
                 }
@@ -349,6 +350,7 @@ for {
                     if len(queryACKlist) == 0 {
                         accumulator = manet.FunctionValue(accumulator)
                         observations = observations + 1
+                        log.Debug( myIP.String() + " => OBSERVATIONS=1" )
 
                         SendAggregate(parentIP, accumulator, observations)
                         // StartTimer()
@@ -356,7 +358,6 @@ for {
                         log.Debug("if len(queryACKlist) == 0")
 
                         if rootNode { // WE ARE DONE!!!!
-                            log.Debug( myIP.String() + " => OBSERVATIONS=" + strconv.Itoa(observations) )
                             LogSuccess() // Suuuuuuucceeeeess!!!
                             CleanupTheHouse()
                         }
