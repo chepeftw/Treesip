@@ -356,6 +356,7 @@ for {
                         log.Debug("if len(queryACKlist) == 0")
 
                         if rootNode { // WE ARE DONE!!!!
+                            log.Debug( myIP.String() + " => OBSERVATIONS=" + strconv.Itoa(observations) )
                             LogSuccess() // Suuuuuuucceeeeess!!!
                             CleanupTheHouse()
                         }
