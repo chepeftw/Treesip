@@ -319,6 +319,7 @@ for {
                     accumulator = manet.FunctionValue(accumulator)
                     observations = observations + 1
                     SendAggregate(parentIP, accumulator, observations)
+                    log.Debug( myIP.String() + " => OBSERVATIONS=" + observations )
                     StartTimer()
                 }
 
