@@ -196,7 +196,7 @@ for {
                     time.Sleep(time.Duration((r1.Intn(19000)+1000)/100) * time.Millisecond)
                 }
                 SendHelloReply(payload)
-                log.Debug(myIP.String() + " => Sending HELLO_REPLY to " + payload.Source.String())
+                log.Debug(myIP.String() + " => _HELLO to " + payload.Source.String())
             }
 
         } else if payload.Type == HelloReplyType {
@@ -204,8 +204,16 @@ for {
                 stamp := payload.Timestamp
 
                 if _, ok := RouterWaitCount[stamp]; ok {
-                    if ( RouterWaitCount[stamp] == 1 && payload.Source.String() == RouterWaitRoom[stamp].Destination.String() ) || RouterWaitCount[stamp] == 0 {
+                    if RouterWaitCount[stamp] == 0 {
                         SendRoute(payload.Source, RouterWaitRoom[stamp])
+                    }
+
+                    if RouterWaitCount[stamp] == 1 && payload.Source.String() == RouterWaitRoom[stamp].Destination.String() {
+                        SendRoute(payload.Source, RouterWaitRoom[stamp])
+                    }
+
+                    if ( RouterWaitCount[stamp] == 1 && payload.Source.String() == RouterWaitRoom[stamp].Destination.String() ) || RouterWaitCount[stamp] == 0 {
+                        // SendRoute(payload.Source, RouterWaitRoom[stamp])
                         ForwardedMessages = append(ForwardedMessages, stamp)
                         if len(ForwardedMessages) > 100 {
                             ForwardedMessages = ForwardedMessages[len(ForwardedMessages)-100:]
@@ -226,7 +234,7 @@ for {
 
                     SendHello(stamp)
 
-                    log.Debug(myIP.String() + " => Routing from " + payload.Source.String())
+                    log.Debug(myIP.String() + " => ROUTE from " + payload.Source.String() + " to " + payload.Destination.String())
                        
                 } else {
                     if !contains(ReceivedMessages, stamp) {
