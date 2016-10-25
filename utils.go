@@ -73,6 +73,11 @@ func removeFromList(del net.IP, list []net.IP) []net.IP {
     return list
 }
 
+func compareIPs( a net.IP, b net.IP ) bool {
+    // return a.Equal(b)
+    return a.String() == b.String()
+}
+
 func parseRoutes(log *logging.Logger) map[string]string {
     out, err := exec.Command("route", "-n").Output()
     checkError(err, log)

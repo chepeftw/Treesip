@@ -284,7 +284,8 @@ for {
         case Q1: 
             // RCV QueryACK -> acc(ACK_IP)
             if payload.Type == QueryType && 
-                    payload.Parent.Equal(myIP) && !payload.Source.Equal(myIP) {
+                    compareIPs(myIP, payload.Parent) && 
+                    !compareIPs(myIP, payload.Source) {
 
                 state = Q2
                 queryACKlist = append(queryACKlist, payload.Source)
@@ -309,8 +310,8 @@ for {
         case Q2:
             // RCV QueryACK -> acc(ACK_IP)
             if payload.Type == QueryType && 
-                    payload.Parent.Equal(myIP) && 
-                    !payload.Source.Equal(myIP) {
+                    compareIPs(myIP, payload.Parent) && 
+                    !compareIPs(myIP, payload.Source) {
 
                 state = Q2 // loop to stay in Q2
                 queryACKlist = append(queryACKlist, payload.Source)
@@ -319,7 +320,7 @@ for {
 
             } else if ( payload.Type == AggregateType || 
                     payload.Type == RouteByGossipType ) && 
-                    payload.Destination.Equal(myIP) { // RCV Aggregate -> SND Aggregate 
+                    compareIPs(myIP, payload.Destination) { // RCV Aggregate -> SND Aggregate 
 
                 // not always but yes
                 // I check that the parent it is itself, that means that he already stored this guy
@@ -348,7 +349,7 @@ for {
             // in the queryACKList
             if ( payload.Type == AggregateType || 
                     payload.Type == RouteByGossipType ) && 
-                    payload.Destination.Equal(myIP) {
+                    compareIPs(myIP, payload.Destination) {
 
                 if containsIP(queryACKlist, payload.Source) {
 
@@ -385,7 +386,7 @@ for {
                 }
 
             } else if payload.Type == AggregateType && 
-                    payload.Source.Equal(parentIP) { // RCV AggregateACK -> done()
+                    compareIPs(parentIP, payload.Source) { // RCV AggregateACK -> done()
 
                 log.Debug( myIP.String() + " => State: A1, RCV Aggregate -> done()")
                 CleanupTheHouse()
