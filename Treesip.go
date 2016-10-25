@@ -1,4 +1,4 @@
-package main
+package treesip
  
 import (
     "os"
@@ -11,10 +11,6 @@ import (
     "encoding/json"
 
     "github.com/op/go-logging"
-    "github.com/chepeftw/treesip/utils"
-    "github.com/chepeftw/treesip/packet"
-    "github.com/chepeftw/treesip/timing"
-    "github.com/chepeftw/treesip/manet"
 )
 
 
@@ -70,7 +66,7 @@ var r1 = rand.New(s1)
 
 // +++++++++ Routing Protocol
 var routes map[string]string = make(map[string]string)
-var RouterWaitRoom map[string]packet.Packet = make(map[string]packet.Packet)
+var RouterWaitRoom map[string]Packet = make(map[string]Packet)
 var RouterWaitCount map[string]int = make(map[string]int)
 var ForwardedMessages []string = []string{}
 var ReceivedMessages []string = []string{}
@@ -83,43 +79,43 @@ var done = make(chan bool)
 
 
 func StartTimer() {
-    timer = timing.Timeout(timeout, timer, r1)
+    timer = startTimeout(timeout, timer, r1)
 
     go func() {
         <- timer.C
-        js, err := json.Marshal(packet.AssembleTimeout())
-        utils.CheckError(err, log)
+        js, err := json.Marshal(assembleTimeout())
+        checkError(err, log)
         buffer <- string(js)
         log.Debug("Timer expired")
     }()
 }
 func StopTimer() {
-    timing.StopTimeout(timer)
+    stopTimeout(timer)
 }
 
 
 func SendHello(stamp string) {
-    SendMessage( packet.AssembleHello(myIP, stamp) )
+    SendMessage( assembleHello(myIP, stamp) )
 }
-func SendHelloReply(payload packet.Packet) {
-    SendMessage( packet.AssembleHelloReply(payload, myIP) )
+func SendHelloReply(payload Packet) {
+    SendMessage( assembleHelloReply(payload, myIP) )
 }
-func SendRoute(gateway net.IP, payloadIn packet.Packet) {
-    SendMessage( packet.AssembleRoute(gateway, payloadIn) )
+func SendRoute(gateway net.IP, payloadIn Packet) {
+    SendMessage( assembleRoute(gateway, payloadIn) )
 }
-func SendQuery(payload packet.Packet) {
-    SendMessage( packet.AssembleQuery(payload, parentIP, myIP) )
+func SendQuery(payload Packet) {
+    SendMessage( assembleQuery(payload, parentIP, myIP) )
 }
 func SendAggregate(destination net.IP, outcome float32, observations int) {
     SendMessage( helperAggregatePacket( destination, outcome, observations ) )
 }
-func helperAggregatePacket(destination net.IP, outcome float32, observations int) packet.Packet {
+func helperAggregatePacket(destination net.IP, outcome float32, observations int) Packet {
     stamp := strings.Replace(myIP.String(), ".", "", -1) + "_" + strconv.FormatInt(time.Now().UTC().UnixNano(), 10)
-    return packet.AssembleAggregate(destination, outcome, observations, parentIP, myIP, timeout, stamp)
+    return assembleAggregate(destination, outcome, observations, parentIP, myIP, timeout, stamp)
 }
-func SendMessage(payload packet.Packet) {
+func SendMessage(payload Packet) {
     js, err := json.Marshal(payload)
-    utils.CheckError(err, log)
+    checkError(err, log)
     output <- string(js)
 }
 
@@ -137,11 +133,11 @@ func LogSuccess() {
 // Function that handles the output channel
 func attendOutputChannel() {
     ServerAddr,err := net.ResolveUDPAddr(Protocol, BroadcastAddr+Port)
-    utils.CheckError(err, log)
+    checkError(err, log)
     LocalAddr, err := net.ResolveUDPAddr(Protocol, myIP.String()+":0")
-    utils.CheckError(err, log)
+    checkError(err, log)
     Conn, err := net.DialUDP(Protocol, LocalAddr, ServerAddr)
-    utils.CheckError(err, log)
+    checkError(err, log)
     defer Conn.Close()
 
     for {
@@ -153,7 +149,7 @@ func attendOutputChannel() {
                 // log.Debug( myIP.String() + " " + j + " MESSAGE_SIZE=" + strconv.Itoa(len(buf)) )
                 log.Info( myIP.String() + " MESSAGE_SIZE=" + strconv.Itoa(len(buf)) )
                 log.Info( myIP.String() + " SENDING_MESSAGE=1" )
-                utils.CheckError(err, log)
+                checkError(err, log)
             }
         } else {
             fmt.Println("closing channel")
@@ -189,21 +185,21 @@ for {
     j, more := <-buffer
     if more {
         // First we take the json, unmarshal it to an object
-        payload := packet.Packet{}
+        payload := Packet{}
         json.Unmarshal([]byte(j), &payload)
 
         // Exclusive to the gossip routing protocol
         fsm = false
-        if payload.Type == packet.HelloType {
+        if payload.Type == HelloType {
             if myIP.String() != payload.Source.String() {
-                if utils.Contains(ForwardedMessages, payload.Timestamp) {
+                if contains(ForwardedMessages, payload.Timestamp) {
                     time.Sleep(time.Duration((r1.Intn(19000)+1000)/100) * time.Millisecond)
                 }
                 SendHelloReply(payload)
                 log.Debug(myIP.String() + " => Sending HELLO_REPLY to " + payload.Source.String())
             }
 
-        } else if payload.Type == packet.HelloReplyType {
+        } else if payload.Type == HelloReplyType {
             if myIP.String() == payload.Destination.String() {
                 stamp := payload.Timestamp
 
@@ -222,7 +218,7 @@ for {
                 }
             }
 
-        } else if payload.Type == packet.RouteByGossipType {
+        } else if payload.Type == RouteByGossipType {
             stamp := payload.Timestamp
             if myIP.String() == payload.Gateway.String() {
                 if myIP.String() != payload.Destination.String() {
@@ -233,7 +229,7 @@ for {
                     log.Debug(myIP.String() + " => Routing from " + payload.Source.String())
                        
                 } else {
-                    if !utils.Contains(ReceivedMessages, stamp) {
+                    if !contains(ReceivedMessages, stamp) {
                         fsm = true
 
                         ReceivedMessages = append(ReceivedMessages, stamp)
@@ -260,11 +256,11 @@ for {
         switch state {
         case INITIAL:
             // RCV start() -> SND Query
-            if payload.Type == packet.StartType {
+            if payload.Type == StartType {
                 startTime = time.Now().UnixNano() // Start time of the monitoring process
             }
 
-            if payload.Type == packet.StartType || payload.Type == packet.QueryType {
+            if payload.Type == StartType || payload.Type == QueryType {
                 state = Q1 // Moving to Q1 state
                 parentIP = payload.Source
                 timeout = payload.Timeout
@@ -279,7 +275,7 @@ for {
         break
         case Q1: 
             // RCV QueryACK -> acc(ACK_IP)
-            if payload.Type == packet.QueryType && 
+            if payload.Type == QueryType && 
                     payload.Parent.Equal(myIP) && !payload.Source.Equal(myIP) {
 
                 state = Q2
@@ -289,11 +285,11 @@ for {
 
                 log.Debug( myIP.String() + " => State: Q1, RCV QueryACK -> acc( " + payload.Source.String() + " )-> " + strconv.Itoa( len( queryACKlist ) ) )
 
-            } else if payload.Type == packet.TimeoutType { // timeout()/edgeNode() -> SND Aggregate
+            } else if payload.Type == TimeoutType { // timeout()/edgeNode() -> SND Aggregate
                 state = A1
 
                 // Just one outcome and 1 observation because it should be the end of a branch
-                accumulator = manet.FunctionValue(accumulator)
+                accumulator = functionValue(accumulator)
                 observations = 1
                 log.Debug( myIP.String() + " => OBSERVATIONS=1" )
                 SendAggregate(parentIP, accumulator, observations)
@@ -304,7 +300,7 @@ for {
         break
         case Q2:
             // RCV QueryACK -> acc(ACK_IP)
-            if payload.Type == packet.QueryType && 
+            if payload.Type == QueryType && 
                     payload.Parent.Equal(myIP) && 
                     !payload.Source.Equal(myIP) {
 
@@ -313,21 +309,21 @@ for {
 
                 log.Debug( myIP.String() + " => State: Q2, RCV QueryACK -> acc( " + payload.Source.String() + " ) -> " + strconv.Itoa( len( queryACKlist ) ))
 
-            } else if ( payload.Type == packet.AggregateType || 
-                    payload.Type == packet.RouteByGossipType ) && 
+            } else if ( payload.Type == AggregateType || 
+                    payload.Type == RouteByGossipType ) && 
                     payload.Destination.Equal(myIP) { // RCV Aggregate -> SND Aggregate 
 
                 // not always but yes
                 // I check that the parent it is itself, that means that he already stored this guy
                 // in the queryACKList
                 state = A1
-                queryACKlist = utils.RemoveFromList(payload.Source, queryACKlist)
+                queryACKlist = removeFromList(payload.Source, queryACKlist)
 
                 StopTimer()
-                accumulator, observations  = manet.AggregateValue( payload.Aggregate.Outcome, payload.Aggregate.Observations, accumulator, observations)
+                accumulator, observations  = aggregateValue( payload.Aggregate.Outcome, payload.Aggregate.Observations, accumulator, observations)
 
                 if len(queryACKlist) == 0 {
-                    accumulator = manet.FunctionValue(accumulator)
+                    accumulator = functionValue(accumulator)
                     observations = observations + 1
                     log.Debug( myIP.String() + " => OBSERVATIONS=1" )
                     SendAggregate(parentIP, accumulator, observations)
@@ -342,26 +338,26 @@ for {
             // RCV Aggregate -> SND Aggregate // not always but yes
             // I check that the parent it is itself, that means that he already stored this guy
             // in the queryACKList
-            if ( payload.Type == packet.AggregateType || 
-                    payload.Type == packet.RouteByGossipType ) && 
+            if ( payload.Type == AggregateType || 
+                    payload.Type == RouteByGossipType ) && 
                     payload.Destination.Equal(myIP) {
 
-                if utils.ContainsIP(queryACKlist, payload.Source) {
+                if containsIP(queryACKlist, payload.Source) {
 
-                    if payload.Type == packet.RouteByGossipType {
+                    if payload.Type == RouteByGossipType {
                             log.Debug( myIP.String() + " Incoming routing => " + j)
                     }
                     
                     state = A1
-                    queryACKlist = utils.RemoveFromList(payload.Source, queryACKlist)
+                    queryACKlist = removeFromList(payload.Source, queryACKlist)
 
                     StopTimer()
-                    accumulator, observations  = manet.AggregateValue( payload.Aggregate.Outcome, payload.Aggregate.Observations, accumulator, observations)
+                    accumulator, observations  = aggregateValue( payload.Aggregate.Outcome, payload.Aggregate.Observations, accumulator, observations)
 
                     log.Debug( myIP.String() + " => State: A1, RCV Aggregate & loop() -> SND Aggregate " + payload.Source.String() + " -> " + strconv.Itoa(len(queryACKlist)))
 
                     if len(queryACKlist) == 0 {
-                        accumulator = manet.FunctionValue(accumulator)
+                        accumulator = functionValue(accumulator)
                         observations = observations + 1
                         log.Debug( myIP.String() + " => OBSERVATIONS=1" )
 
@@ -380,13 +376,13 @@ for {
 
                 }
 
-            } else if payload.Type == packet.AggregateType && 
+            } else if payload.Type == AggregateType && 
                     payload.Source.Equal(parentIP) { // RCV AggregateACK -> done()
 
                 log.Debug( myIP.String() + " => State: A1, RCV Aggregate -> done()")
                 CleanupTheHouse()
 
-            } else if payload.Type == packet.TimeoutType { // timeout -> SND AggregateRoute // not today
+            } else if payload.Type == TimeoutType { // timeout -> SND AggregateRoute // not today
                 state = A2 // it should do this, but not today
                 
                 payloadRefurbish := helperAggregatePacket( parentIP, accumulator, observations )
@@ -461,7 +457,7 @@ func selectLeaderOfTheManet() {
     if myIP.String() == neo {
         rootNode = true
 
-        query := packet.Query{
+        query := Query{
                 Function: "avg",
                 RelaySet: []*net.IP{},
             }
@@ -471,8 +467,8 @@ func selectLeaderOfTheManet() {
             calculatedTimeout = externalTimeout
         }
 
-        payload := packet.Packet{
-            Type: packet.StartType,
+        payload := Packet{
+            Type: StartType,
             Source: myIP,
             Timeout: calculatedTimeout,
             Query: &query,
@@ -482,14 +478,14 @@ func selectLeaderOfTheManet() {
         time.Sleep(time.Second * 3)
 
         js, err := json.Marshal(payload)
-        utils.CheckError(err, log)
+        checkError(err, log)
         log.Debug("Initial JSON " + string(js))
         buffer <- string(js)
     }
 }
 // ------------
  
-func main() {
+func Run() {
 
     if nnodes := os.Getenv("NNODES"); nnodes != "" {
         globalNumberNodes, _ = strconv.Atoi( nnodes )
@@ -554,16 +550,16 @@ func main() {
     // ------------
 
     // But first let me take a selfie, in a Go lang program is getting my own IP
-    myIP = utils.SelfieIP();
+    myIP = selfieIP();
     log.Info("Good to go, my ip is " + myIP.String())
 
     // Lets prepare a address at any address at port 10001
     ServerAddr,err := net.ResolveUDPAddr(Protocol, Port)
-    utils.CheckError(err, log)
+    checkError(err, log)
  
     // Now listen at selected port
     ServerConn, err := net.ListenUDP(Protocol, ServerAddr)
-    utils.CheckError(err, log)
+    checkError(err, log)
     defer ServerConn.Close()
 
     // Run the FSM! The one in charge of everything
@@ -578,7 +574,7 @@ func main() {
     for {
         n,_,err := ServerConn.ReadFromUDP(buf)
         buffer <- string(buf[0:n])
-        utils.CheckError(err, log)
+        checkError(err, log)
     }
 
     close(buffer)

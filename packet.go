@@ -1,4 +1,4 @@
-package packet
+package treesip
 
 import (
     "net"
@@ -64,7 +64,7 @@ func calculateRelaySet( newItem net.IP, receivedRelaySet []*net.IP ) []*net.IP {
 }
 
 
-func AssembleTimeout() Packet {
+func assembleTimeout() Packet {
     payload := Packet{
         Type: TimeoutType,
     }
@@ -72,7 +72,7 @@ func AssembleTimeout() Packet {
     return payload
 }
 
-func AssembleAggregate(dest net.IP, out float32, obs int, dad net.IP, me net.IP, tmo int, stamp string) Packet {
+func assembleAggregate(dest net.IP, out float32, obs int, dad net.IP, me net.IP, tmo int, stamp string) Packet {
     aggregate := Aggregate{
             Outcome: out,
             Observations: obs,
@@ -91,7 +91,7 @@ func AssembleAggregate(dest net.IP, out float32, obs int, dad net.IP, me net.IP,
     return payload
 }
 
-func AssembleQuery(payloadIn Packet, dad net.IP, me net.IP) Packet {
+func assembleQuery(payloadIn Packet, dad net.IP, me net.IP) Packet {
 	relaySet := []*net.IP{}
 	if payloadIn.Type != StartType {
         relaySet = calculateRelaySet(payloadIn.Source, payloadIn.Query.RelaySet)
@@ -114,7 +114,7 @@ func AssembleQuery(payloadIn Packet, dad net.IP, me net.IP) Packet {
 }
 
 
-func AssembleHello(me net.IP, stamp string) Packet {
+func assembleHello(me net.IP, stamp string) Packet {
     payload := Packet{
         Type: HelloType,
         Source: me,
@@ -124,7 +124,7 @@ func AssembleHello(me net.IP, stamp string) Packet {
     return payload
 }
 
-func AssembleHelloReply(payloadIn Packet, me net.IP) Packet {
+func assembleHelloReply(payloadIn Packet, me net.IP) Packet {
     payload := Packet{
         Type: HelloReplyType,
         Source: me,
@@ -135,7 +135,7 @@ func AssembleHelloReply(payloadIn Packet, me net.IP) Packet {
     return payload
 }
 
-func AssembleRoute(gw net.IP, payloadIn Packet) Packet {
+func assembleRoute(gw net.IP, payloadIn Packet) Packet {
     // aggregate := Aggregate{
     //         Outcome: payloadIn.Aggregate.Outcome,
     //         Observations: payloadIn.Aggregate.Observations,

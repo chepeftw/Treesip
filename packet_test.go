@@ -1,7 +1,10 @@
-package packet
+package treesip
 
 import (
 	"net"
+	"time"
+	"strings"
+	"strconv"
     "testing"
 )
 
@@ -34,8 +37,10 @@ func TestAssembleAggregate(t *testing.T) {
 	observations := 1
 	dad := net.ParseIP("127.0.0.2")
 	me := net.ParseIP("127.0.0.1")
-	tmo := float32(1000.0)
-	payload := AssembleAggregate( dest, outcome, observations, dad, me, tmo )
+	tmo := 1000
+	stamp := strings.Replace(myIP.String(), ".", "", -1) + "_" + strconv.FormatInt(time.Now().UTC().UnixNano(), 10)
+	payload := assembleAggregate( dest, outcome, observations, dad, me, tmo, stamp )
+	// func assembleAggregate(dest net.IP, out float32, obs int, dad net.IP, me net.IP, tmo int, stamp string) Packet {
 
 	if payload.Type != AggregateType {
 		t.Fail()
@@ -45,11 +50,35 @@ func TestAssembleAggregate(t *testing.T) {
 		t.Fail()
 	}
 
-	if payload.Aggregate.Destination.String() != dest.String() {
+	if payload.Destination.String() != dest.String() {
 		t.Fail()
 	}
 
 	if payload.Aggregate.Outcome != outcome || payload.Aggregate.Observations != observations {
+		t.Fail()
+	}
+
+
+	gw := net.ParseIP("127.0.0.9")
+	route := assembleRoute( gw, payload )
+
+	if route.Type != RouteByGossipType {
+		t.Fail()
+	}
+
+	if route.Parent.String() != dad.String() || route.Source.String() != me.String() {
+		t.Fail()
+	}
+
+	if route.Destination.String() != dest.String() && route.Gateway.String() != gw.String() {
+		t.Fail()
+	}
+
+	if route.Aggregate.Outcome != outcome || route.Aggregate.Observations != observations {
+		t.Fail()
+	}
+
+	if route.Hops != 1 {
 		t.Fail()
 	}
 }
@@ -60,7 +89,7 @@ func TestAssembleQuery(t *testing.T) {
 	me := net.ParseIP("127.0.0.1")
 	dad := net.ParseIP("127.0.0.2")
 	me2 := net.ParseIP("127.0.0.100")
-	tmo := float32(1000.0)
+	tmo := 1000
 	fct := "avg"
 
 	query := Query{
@@ -75,7 +104,7 @@ func TestAssembleQuery(t *testing.T) {
         Query: &query,
     }
 
-	payload := AssembleQuery( prePayload, dad, me )
+	payload := assembleQuery( prePayload, dad, me )
 
 	if payload.Type != QueryType {
 		t.Fail()
@@ -94,7 +123,7 @@ func TestAssembleQuery(t *testing.T) {
 	}
 
 
-	payload2 := AssembleQuery( payload, me, me2 )
+	payload2 := assembleQuery( payload, me, me2 )
 	if payload2.Type != QueryType {
 		t.Fail()
 	}

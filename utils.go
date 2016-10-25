@@ -1,4 +1,4 @@
-package utils
+package treesip
 
 import (
     "net"
@@ -11,7 +11,7 @@ import (
 )
 
 // A Simple function to verify error
-func CheckError(err error, log *logging.Logger) {
+func checkError(err error, log *logging.Logger) {
     if err  != nil {
         log.Error("Error: ", err)
     }
@@ -19,7 +19,7 @@ func CheckError(err error, log *logging.Logger) {
 
 // Getting my own IP, first we get all interfaces, then we iterate
 // discard the loopback and get the IPv4 address, which should be the eth0
-func SelfieIP() net.IP {
+func selfieIP() net.IP {
     addrs, err := net.InterfaceAddrs()
     if err != nil {
         panic(err)
@@ -38,7 +38,7 @@ func SelfieIP() net.IP {
 
 // Checking if a string is contained in a string list
 // returns true if is contained, and false if not ... you kidding right?
-func Contains(s []string, e string) bool {
+func contains(s []string, e string) bool {
     for _, a := range s {
         if a == e {
             return true
@@ -48,7 +48,7 @@ func Contains(s []string, e string) bool {
 }
 
 // There should be a better way to do this, since this resembles to the upper function
-func ContainsIP(s []net.IP, e net.IP) bool {
+func containsIP(s []net.IP, e net.IP) bool {
     for _, a := range s {
         if a.String() == e.String() {
             return true
@@ -57,7 +57,7 @@ func ContainsIP(s []net.IP, e net.IP) bool {
     return false
 }
 
-func RemoveFromList(del net.IP, list []net.IP) []net.IP {
+func removeFromList(del net.IP, list []net.IP) []net.IP {
     index := -1
     for i, b := range list {
         if b.Equal(del) {
@@ -73,9 +73,10 @@ func RemoveFromList(del net.IP, list []net.IP) []net.IP {
     return list
 }
 
-func ParseRoutes(log *logging.Logger) map[string]string {
+func parseRoutes(log *logging.Logger) map[string]string {
     out, err := exec.Command("route", "-n").Output()
-    CheckError(err, log)
+    checkError(err, log)
+    // For go tests, this throws a 2016/10/25 15:00:48 Error:  exit status 64
 
     routes := make(map[string]string)
     scanner := bufio.NewScanner(strings.NewReader(string(out[:])))
