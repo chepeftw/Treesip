@@ -1,4 +1,4 @@
-package treesip
+package main
 
 import (
 	"time"

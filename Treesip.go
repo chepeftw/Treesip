@@ -1,4 +1,4 @@
-package treesip
+package main
  
 import (
     "os"
@@ -485,7 +485,7 @@ func selectLeaderOfTheManet() {
 }
 // ------------
  
-func Run() {
+func main() {
 
     if nnodes := os.Getenv("NNODES"); nnodes != "" {
         globalNumberNodes, _ = strconv.Atoi( nnodes )

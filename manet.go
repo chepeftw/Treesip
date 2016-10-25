@@ -1,4 +1,4 @@
-package treesip
+package main
 
 // Accumulating the monitored value
 func functionValue( acc float32 ) float32 {
