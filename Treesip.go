@@ -610,7 +610,12 @@ func main() {
  
     for {
         n,_,err := ServerConn.ReadFromUDP(buf)
-        buffer <- string(buf[0:n])
+        str := string(buf[0:n])
+        if myIP.String() != "10.12.0.1" {
+            log.Debug("buffer => "+str)
+        }
+        
+        buffer <- str
         checkError(err, log)
     }
 
