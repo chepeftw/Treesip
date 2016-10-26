@@ -49,6 +49,7 @@ var timeout int = 0
 
 var queryACKlist []net.IP = []net.IP{}
 var timer *time.Timer
+var timerHello *time.Timer
 
 var accumulator float32 = 0
 var observations int = 0
@@ -93,9 +94,26 @@ func StopTimer() {
     stopTimeout(timer)
 }
 
+func StartTimerHello(stamp string) {
+    timerHello = startTimeout(timeout, timerHello, r1)
+
+    go func() {
+        <- timerHello.C
+        js, err := json.Marshal(assembleTimeoutHello(stamp))
+        checkError(err, log)
+        buffer <- string(js)
+        log.Debug("TimerHello Expired")
+    }()
+}
+func StopTimerHello() {
+    stopTimeout(timerHello)
+    log.Debug("TimerHello Stopped")
+}
+
 
 func SendHello(stamp string) {
     SendMessage( assembleHello(myIP, stamp) )
+    StartTimerHello(stamp)
 }
 func SendHelloReply(payload Packet) {
     SendMessage( assembleHelloReply(payload, myIP) )
@@ -191,7 +209,8 @@ for {
         // Exclusive to the gossip routing protocol
         fsm = false
         if payload.Type == HelloType {
-            if myIP.String() != payload.Source.String() {
+            // if myIP.String() != payload.Source.String() {
+            if !compareIPs( myIP, payload.Source) {
                 if contains(ForwardedMessages, payload.Timestamp) {
                     time.Sleep(time.Duration((r1.Intn(19000)+1000)/100) * time.Millisecond)
                 }
@@ -199,11 +218,20 @@ for {
                 log.Debug(myIP.String() + " => _HELLO to " + payload.Source.String())
             }
 
+        } else if payload.Type == HelloTimeoutType { // HELLO TIMEOUT
+            SendHello(payload.Timestamp)
+
+            log.Debug(myIP.String() + " => HELLO_TIMEOUT " + payload.Timestamp)
+
         } else if payload.Type == HelloReplyType {
-            if myIP.String() == payload.Destination.String() {
+            // if myIP.String() == payload.Destination.String() {
+            if compareIPs( myIP, payload.Destination ) {
+                StopTimerHello()
                 stamp := payload.Timestamp
 
                 if _, ok := RouterWaitCount[stamp]; ok {
+
+                    // Splitting the SendRoute in before ifs to improve performance
                     if RouterWaitCount[stamp] == 0 {
                         SendRoute(payload.Source, RouterWaitRoom[stamp])
                     }

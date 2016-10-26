@@ -16,6 +16,7 @@ const (
     AggregateRteType
 
     HelloType
+    HelloTimeoutType
     HelloReplyType
     RouteByTableType
     RouteByGossipType
@@ -67,6 +68,15 @@ func calculateRelaySet( newItem net.IP, receivedRelaySet []*net.IP ) []*net.IP {
 func assembleTimeout() Packet {
     payload := Packet{
         Type: TimeoutType,
+    }
+
+    return payload
+}
+
+func assembleTimeoutHello(stamp string) Packet {
+    payload := Packet{
+        Type: HelloTimeoutType,
+        Timestamp: stamp,
     }
 
     return payload
