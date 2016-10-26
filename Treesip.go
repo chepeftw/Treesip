@@ -95,7 +95,7 @@ func StopTimer() {
 }
 
 func StartTimerHello(stamp string) {
-    timerHello = startTimeout(timeout*2, timerHello, r1)
+    timerHello = startTimeout(timeout*3, timerHello, r1)
 
     go func() {
         <- timerHello.C
@@ -164,8 +164,8 @@ func attendOutputChannel() {
             if Conn != nil {
                 buf := []byte(j)
                 _,err = Conn.Write(buf)
-                // log.Debug( myIP.String() + " " + j + " MESSAGE_SIZE=" + strconv.Itoa(len(buf)) )
-                log.Info( myIP.String() + " MESSAGE_SIZE=" + strconv.Itoa(len(buf)) )
+                log.Debug( myIP.String() + " " + j + " MESSAGE_SIZE=" + strconv.Itoa(len(buf)) )
+                // log.Info( myIP.String() + " MESSAGE_SIZE=" + strconv.Itoa(len(buf)) )
                 log.Info( myIP.String() + " SENDING_MESSAGE=1" )
                 checkError(err, log)
             }
