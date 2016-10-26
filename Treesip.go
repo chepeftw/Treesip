@@ -226,7 +226,6 @@ for {
         } else if payload.Type == HelloReplyType {
             // if myIP.String() == payload.Destination.String() {
             if compareIPs( myIP, payload.Destination ) {
-                StopTimerHello()
                 stamp := payload.Timestamp
 
                 if _, ok := RouterWaitCount[stamp]; ok {
@@ -241,6 +240,7 @@ for {
                     }
 
                     if ( RouterWaitCount[stamp] == 1 && payload.Source.String() == RouterWaitRoom[stamp].Destination.String() ) || RouterWaitCount[stamp] == 0 {
+                        StopTimerHello()
                         // SendRoute(payload.Source, RouterWaitRoom[stamp])
                         ForwardedMessages = append(ForwardedMessages, stamp)
                         if len(ForwardedMessages) > 100 {
