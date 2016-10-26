@@ -95,7 +95,7 @@ func StopTimer() {
 }
 
 func StartTimerHello(stamp string) {
-    timerHello = startTimeout(timeout, timerHello, r1)
+    timerHello = startTimeout(timeout*2, timerHello, r1)
 
     go func() {
         <- timerHello.C
