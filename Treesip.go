@@ -442,10 +442,10 @@ for {
                 log.Debug( myIP.String() + " => State: A1, timeout() -> SND AggregateRoute")
                 log.Debug( myIP.String() + " => " + string(j) )
 
-                // if rootNode { // Just to show something
-                //     LogSuccess() // Suuuuuuucceeeeess!!!
-                // }
-                // CleanupTheHouse()
+                if rootNode { // Just to show something
+                    LogSuccess() // Suuuuuuucceeeeess!!!
+                }
+                CleanupTheHouse()
             }
         break
         case A2:
