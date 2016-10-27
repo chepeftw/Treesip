@@ -49,7 +49,6 @@ var timeout int = 0
 
 var queryACKlist []net.IP = []net.IP{}
 var timer *time.Timer
-var timerHello *time.Timer
 
 var accumulator float32 = 0
 var observations int = 0
@@ -80,7 +79,8 @@ var done = make(chan bool)
 
 
 func StartTimer() {
-    timer = startTimeout(timeout, timer, r1)
+    stopTimeout(timer)
+    timer = startTimeout(timeout, r1)
 
     go func() {
         <- timer.C
@@ -95,25 +95,23 @@ func StopTimer() {
 }
 
 func StartTimerHello(stamp string) {
-    timerHello = startTimeout(timeout*2, timerHello, r1)
+    timerHello := startTimeout(timeout*2, r1)
 
-    go func() {
-        <- timerHello.C
-        js, err := json.Marshal(assembleTimeoutHello(stamp))
-        checkError(err, log)
-        buffer <- string(js)
-        log.Debug("TimerHello Expired")
-    }()
+    <- timerHello.C
+    js, err := json.Marshal(assembleTimeoutHello(stamp))
+    checkError(err, log)
+    buffer <- string(js)
+    log.Debug("TimerHello Expired " + stamp)
 }
-func StopTimerHello() {
-    stopTimeout(timerHello)
-    log.Debug("TimerHello Stopped")
-}
+// func StopTimerHello() {
+//     stopTimeout(timerHello)
+//     log.Debug("TimerHello Stopped")
+// }
 
 
 func SendHello(stamp string) {
     SendMessage( assembleHello(myIP, stamp) )
-    StartTimerHello(stamp)
+    go StartTimerHello(stamp)
 }
 func SendHelloReply(payload Packet) {
     SendMessage( assembleHelloReply(payload, myIP) )
@@ -219,12 +217,15 @@ for {
             }
 
         } else if payload.Type == HelloTimeoutType { // HELLO TIMEOUT
-            SendHello(payload.Timestamp)
+            if !contains(ForwardedMessages, payload.Timestamp) {
+                SendHello(payload.Timestamp)
 
-            log.Debug(myIP.String() + " => HELLO_TIMEOUT " + payload.Timestamp)
+                log.Debug(myIP.String() + " => HELLO_TIMEOUT ON TIME" + payload.Timestamp)
+            } else {
+                log.Debug(myIP.String() + " => HELLO_TIMEOUT delayed " + payload.Timestamp)
+            }
 
         } else if payload.Type == HelloReplyType {
-            // if myIP.String() == payload.Destination.String() {
             if compareIPs( myIP, payload.Destination ) {
                 stamp := payload.Timestamp
 
@@ -240,7 +241,7 @@ for {
                     }
 
                     if ( RouterWaitCount[stamp] == 1 && compareIPs(payload.Source, RouterWaitRoom[stamp].Destination) ) || RouterWaitCount[stamp] == 0 {
-                        StopTimerHello()
+                        // StopTimerHello()
                         SendRoute(payload.Source, RouterWaitRoom[stamp])
                         ForwardedMessages = appendToList(ForwardedMessages, stamp)
                         // delete(RouterWaitRoom, stamp)

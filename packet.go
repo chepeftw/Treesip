@@ -8,18 +8,22 @@ import (
 
 // +++++++++ Constants
 const (
-    StartType = iota
-    TimeoutType
-    QueryType
-    AggregateType
-    AggregateFwdType
-    AggregateRteType
+    StartType = iota // 0
 
-    HelloType
+    TimeoutType
+    QueryType // 2
+
+    AggregateType
+    AggregateFwdType //4
+
+    AggregateRteType
+    HelloType // 6
+
     HelloTimeoutType
-    HelloReplyType
+    HelloReplyType // 8
+
     RouteByTableType
-    RouteByGossipType
+    RouteByGossipType  //10
 )
 
 
