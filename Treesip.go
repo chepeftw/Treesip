@@ -154,6 +154,7 @@ func LogSuccess() {
         strconv.FormatFloat( float64(accumulator), 'f', 6, 32) + 
         " and Observations:" + 
         strconv.Itoa(observations))
+    log.Info( myIP.String() + " RESULT="+strconv.Itoa(observations))
     log.Info( myIP.String() + " GLOBAL_TIMEOUT=1")
     log.Info( myIP.String() + " CONVERGENCE_TIME=" + strconv.FormatInt( (time.Now().UnixNano() - startTime) / int64(time.Millisecond), 10 ))
 }
