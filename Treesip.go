@@ -235,22 +235,23 @@ for {
                         SendRoute(payload.Source, RouterWaitRoom[stamp])
                     }
 
-                    if RouterWaitCount[stamp] == 1 && payload.Source.String() == RouterWaitRoom[stamp].Destination.String() {
+                    if RouterWaitCount[stamp] == 1 && compareIPs(payload.Source, RouterWaitRoom[stamp].Destination) {
                         SendRoute(payload.Source, RouterWaitRoom[stamp])
                     }
 
-                    if ( RouterWaitCount[stamp] == 1 && payload.Source.String() == RouterWaitRoom[stamp].Destination.String() ) || RouterWaitCount[stamp] == 0 {
+                    if ( RouterWaitCount[stamp] == 1 && compareIPs(payload.Source, RouterWaitRoom[stamp].Destination) ) || RouterWaitCount[stamp] == 0 {
                         StopTimerHello()
-                        // SendRoute(payload.Source, RouterWaitRoom[stamp])
-                        ForwardedMessages = append(ForwardedMessages, stamp)
-                        if len(ForwardedMessages) > 100 {
-                            ForwardedMessages = ForwardedMessages[len(ForwardedMessages)-100:]
-                        }
+                        SendRoute(payload.Source, RouterWaitRoom[stamp])
+                        ForwardedMessages = appendToList(ForwardedMessages, stamp)
                         // delete(RouterWaitRoom, stamp)
                         RouterWaitCount[stamp] = 1
 
-                        log.Debug(myIP.String() + " => HELLO_REPLY from " + payload.Source.String())
+                        log.Debug(myIP.String() + " => HELLO_REPLY WIN from " + payload.Source.String())
+                    } else {
+                        log.Debug(myIP.String() + " => HELLO_REPLY FAIL from " + payload.Source.String())
                     }
+                } else {
+                    log.Debug(myIP.String() + " => HELLO_REPLY NOT IN RouterWaitRoom from " + payload.Source.String())
                 }
             }
 
@@ -268,10 +269,7 @@ for {
                     if !contains(ReceivedMessages, stamp) {
                         fsm = true
 
-                        ReceivedMessages = append(ReceivedMessages, stamp)
-                        if len(ReceivedMessages) > 100 {
-                            ReceivedMessages = ReceivedMessages[len(ReceivedMessages)-100:]
-                        }
+                        ReceivedMessages = appendToList(ReceivedMessages, stamp)
 
                         log.Debug(myIP.String() + " SUCCESS ROUTE -> stamp: " + stamp +" from " + payload.Source.String() + " after " + strconv.Itoa(payload.Hops) + " hops")
                         log.Debug(myIP.String() + " => " + j)

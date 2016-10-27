@@ -78,6 +78,15 @@ func compareIPs( a net.IP, b net.IP ) bool {
     return a.String() == b.String()
 }
 
+func appendToList( list []string, item string ) []string {
+    list = append(list, item)
+    if len(list) > 100 {
+        list = list[len(list)-150:]
+    }
+
+    return list
+}
+
 func parseRoutes(log *logging.Logger) map[string]string {
     out, err := exec.Command("route", "-n").Output()
     checkError(err, log)
