@@ -13,8 +13,7 @@ func startTimeout(d int, r1 *rand.Rand) *time.Timer {
 }
 
 func startTimeoutF(d float32, r1 *rand.Rand) *time.Timer {
-	duration := float32( ( d * float32( r1.Intn(1000) ) ) / 1000 )
-    timeout := time.NewTimer(time.Millisecond * time.Duration(1000+duration))
+    timeout := time.NewTimer(time.Millisecond * time.Duration(1000+d))
     return timeout
 }
 
