@@ -43,6 +43,7 @@ type Packet struct {
     Timestamp    string     `json:"ts,omitempty"`
     TimeToLive   int        `json:"ttl,omitempty"`
     Hops         int        `json:"hps,omitempty"`
+    Level        int        `json:"hps,omitempty"`
 }
 
 type Query struct {
@@ -121,6 +122,7 @@ func assembleQuery(payloadIn Packet, dad net.IP, me net.IP) Packet {
         Parent: dad,
         Source: me,
         Timeout: payloadIn.Timeout,
+        Level: payloadIn.Level+1,
         Query: &query,
     }
 

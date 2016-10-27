@@ -5,6 +5,7 @@ import (
     "fmt"
     "net"
     "time"
+    "math"
     "strings"
     "strconv"
     "math/rand"
@@ -46,6 +47,9 @@ var state = INITIAL
 var myIP net.IP = net.ParseIP(LocalhostAddr)
 var parentIP net.IP = net.ParseIP(LocalhostAddr)
 var timeout int = 0
+var level int = 0
+
+var maxTreeTimeout int = 6000
 
 var queryACKlist []net.IP = []net.IP{}
 var timer *time.Timer
@@ -77,10 +81,18 @@ var output = make(chan string)
 var router = make(chan string)
 var done = make(chan bool)
 
+func StartTreeTimer() {
+    treeTimeout := float32(maxTreeTimeout) * float32(math.Pow( 0.75, float64(level) ))
+    StartTimerStar(treeTimeout)
+}
 
 func StartTimer() {
+    StartTimerStar( float32(timeout) )
+}
+
+func StartTimerStar(localTimeout float32) {
     stopTimeout(timer)
-    timer = startTimeout(timeout, r1)
+    timer = startTimeoutF(localTimeout, r1)
 
     go func() {
         <- timer.C
@@ -181,6 +193,7 @@ func CleanupTheHouse() {
     state = INITIAL
     parentIP = net.ParseIP(LocalhostAddr)
     timeout = 0
+    level = 0
 
     queryACKlist = []net.IP{}
     StopTimer()
@@ -297,12 +310,14 @@ for {
                 state = Q1 // Moving to Q1 state
                 parentIP = payload.Source
                 timeout = payload.Timeout
+                level = payload.Level
 
                 SendQuery(payload)
                 StartTimer()
 
                 log.Debug(myIP.String() + " => State: INITIAL, RCV Query -> SND Query")
-                log.Info( myIP.String() + " => START_QUERY=1")
+                log.Debug( myIP.String() + " => START_QUERY=1")
+                log.Debug( myIP.String() + " => LEVEL=" + strconv.Itoa(level))
 
             }
         break
@@ -362,7 +377,7 @@ for {
                     log.Debug( myIP.String() + " => OBSERVATIONS=1" )
                     SendAggregate(parentIP, accumulator, observations)
 
-                    StartTimer()
+                    StartTreeTimer()
                 }
 
                 log.Debug( myIP.String() + " => State: Q2, RCV Aggregate -> SND Aggregate remove " + payload.Source.String() + " -> " + strconv.Itoa( len( queryACKlist ) ))
@@ -396,7 +411,7 @@ for {
                         log.Debug( myIP.String() + " => OBSERVATIONS=1" )
 
                         SendAggregate(parentIP, accumulator, observations)
-                        // StartTimer()
+                        StartTreeTimer()
 
                         log.Debug("if len(queryACKlist) == 0")
 
@@ -405,7 +420,7 @@ for {
                             CleanupTheHouse()
                         }
                     } else {
-                        // StartTimer()
+                        StartTreeTimer()
                     }
 
                 }
@@ -505,6 +520,7 @@ func selectLeaderOfTheManet() {
             Type: StartType,
             Source: myIP,
             Timeout: calculatedTimeout,
+            Level: 0,
             Query: &query,
         }
 
