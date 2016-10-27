@@ -206,15 +206,14 @@ for {
 
         // Exclusive to the gossip routing protocol
         fsm = false
-        if payload.Type == HelloType {
-            // if myIP.String() != payload.Source.String() {
-            if !compareIPs( myIP, payload.Source) {
-                if contains(ForwardedMessages, payload.Timestamp) {
-                    time.Sleep(time.Duration((r1.Intn(19000)+1000)/100) * time.Millisecond)
-                }
-                SendHelloReply(payload)
-                log.Debug(myIP.String() + " => _HELLO to " + payload.Source.String())
+        if payload.Type == HelloType &&
+            !compareIPs( myIP, payload.Source) {
+            
+            if contains(ForwardedMessages, payload.Timestamp) {
+                time.Sleep(time.Duration((r1.Intn(19000)+1000)/100) * time.Millisecond)
             }
+            SendHelloReply(payload)
+            log.Debug(myIP.String() + " => _HELLO to " + payload.Source.String())
 
         } else if payload.Type == HelloTimeoutType { // HELLO TIMEOUT
             if !contains(ForwardedMessages, payload.Timestamp) {
@@ -225,59 +224,58 @@ for {
                 log.Debug(myIP.String() + " => HELLO_TIMEOUT delayed " + payload.Timestamp)
             }
 
-        } else if payload.Type == HelloReplyType {
-            if compareIPs( myIP, payload.Destination ) {
-                stamp := payload.Timestamp
+        } else if payload.Type == HelloReplyType &&
+                    compareIPs( myIP, payload.Destination ) {
 
-                if _, ok := RouterWaitCount[stamp]; ok {
+            stamp := payload.Timestamp
 
-                    // Splitting the SendRoute in before ifs to improve performance
-                    if RouterWaitCount[stamp] == 0 {
-                        SendRoute(payload.Source, RouterWaitRoom[stamp])
-                    }
+            if _, ok := RouterWaitCount[stamp]; ok {
 
-                    if RouterWaitCount[stamp] == 1 && compareIPs(payload.Source, RouterWaitRoom[stamp].Destination) {
-                        SendRoute(payload.Source, RouterWaitRoom[stamp])
-                    }
-
-                    if ( RouterWaitCount[stamp] == 1 && compareIPs(payload.Source, RouterWaitRoom[stamp].Destination) ) || RouterWaitCount[stamp] == 0 {
-                        // StopTimerHello()
-                        SendRoute(payload.Source, RouterWaitRoom[stamp])
-                        ForwardedMessages = appendToList(ForwardedMessages, stamp)
-                        // delete(RouterWaitRoom, stamp)
-                        RouterWaitCount[stamp] = 1
-
-                        log.Debug(myIP.String() + " => HELLO_REPLY WIN from " + payload.Source.String())
-                    } else {
-                        log.Debug(myIP.String() + " => HELLO_REPLY FAIL from " + payload.Source.String())
-                    }
-                } else {
-                    log.Debug(myIP.String() + " => HELLO_REPLY NOT IN RouterWaitRoom from " + payload.Source.String())
+                // Splitting the SendRoute in before ifs to improve performance
+                if RouterWaitCount[stamp] == 0 {
+                    SendRoute(payload.Source, RouterWaitRoom[stamp])
                 }
+
+                if RouterWaitCount[stamp] == 1 && compareIPs(payload.Source, RouterWaitRoom[stamp].Destination) {
+                    SendRoute(payload.Source, RouterWaitRoom[stamp])
+                }
+
+                if ( RouterWaitCount[stamp] == 1 && compareIPs(payload.Source, RouterWaitRoom[stamp].Destination) ) || RouterWaitCount[stamp] == 0 {
+                    // StopTimerHello()
+                    SendRoute(payload.Source, RouterWaitRoom[stamp])
+                    ForwardedMessages = appendToList(ForwardedMessages, stamp)
+                    // delete(RouterWaitRoom, stamp)
+                    RouterWaitCount[stamp] = 1
+
+                    log.Debug(myIP.String() + " => HELLO_REPLY WIN from " + payload.Source.String())
+                } else {
+                    log.Debug(myIP.String() + " => HELLO_REPLY FAIL from " + payload.Source.String())
+                }
+            } else {
+                log.Debug(myIP.String() + " => HELLO_REPLY NOT IN RouterWaitRoom from " + payload.Source.String())
             }
 
         } else if payload.Type == RouteByGossipType {
             stamp := payload.Timestamp
-            if myIP.String() == payload.Gateway.String() {
-                if myIP.String() != payload.Destination.String() {
-                    RouterWaitRoom[stamp] = payload
+            if compareIPs( myIP, payload.Gateway ) && !compareIPs( myIP, payload.Destination ) {
+    
+                RouterWaitRoom[stamp] = payload
 
-                    SendHello(stamp)
+                SendHello(stamp)
 
-                    log.Debug(myIP.String() + " => ROUTE from " + payload.Source.String() + " to " + payload.Destination.String())
-                       
+                log.Debug(myIP.String() + " => ROUTE from " + payload.Source.String() + " to " + payload.Destination.String())
+                    
+            } else if compareIPs( myIP, payload.Gateway ) && compareIPs( myIP, payload.Destination ) {
+                if !contains(ReceivedMessages, stamp) {
+                    fsm = true
+
+                    ReceivedMessages = appendToList(ReceivedMessages, stamp)
+
+                    log.Debug(myIP.String() + " SUCCESS ROUTE -> stamp: " + stamp +" from " + payload.Source.String() + " after " + strconv.Itoa(payload.Hops) + " hops")
+                    log.Debug(myIP.String() + " => " + j)
+                    log.Info(myIP.String() + " => SUCCESS_ROUTE=1")
                 } else {
-                    if !contains(ReceivedMessages, stamp) {
-                        fsm = true
-
-                        ReceivedMessages = appendToList(ReceivedMessages, stamp)
-
-                        log.Debug(myIP.String() + " SUCCESS ROUTE -> stamp: " + stamp +" from " + payload.Source.String() + " after " + strconv.Itoa(payload.Hops) + " hops")
-                        log.Debug(myIP.String() + " => " + j)
-                        log.Info(myIP.String() + " => SUCCESS_ROUTE=1")
-                    } else {
-                        log.Info(myIP.String() + " => SUCCESS_AGAIN_ROUTE=1")
-                    }
+                    log.Info(myIP.String() + " => SUCCESS_AGAIN_ROUTE=1")
                 }
             }
         } else {
@@ -610,9 +608,9 @@ func main() {
     for {
         n,_,err := ServerConn.ReadFromUDP(buf)
         str := string(buf[0:n])
-        if myIP.String() != "10.12.0.1" {
-            log.Debug("buffer => "+str)
-        }
+        // if myIP.String() != "10.12.0.1" {
+        //     log.Debug("buffer => "+str)
+        // }
         
         buffer <- str
         checkError(err, log)
