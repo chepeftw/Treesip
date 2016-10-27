@@ -43,7 +43,7 @@ type Packet struct {
     Timestamp    string     `json:"ts,omitempty"`
     TimeToLive   int        `json:"ttl,omitempty"`
     Hops         int        `json:"hps,omitempty"`
-    Level        int        `json:"hps,omitempty"`
+    Level        int        `json:"lvl,omitempty"`
 }
 
 type Query struct {
