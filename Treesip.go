@@ -273,14 +273,17 @@ for {
             stamp := payload.Timestamp
             if compareIPs( myIP, payload.Gateway ) && !compareIPs( myIP, payload.Destination ) {
     
-                RouterWaitRoom[stamp] = payload
+                // RouterWaitRoom[stamp] = payload
 
-                SendHello(stamp)
+                // SendHello(stamp)
+
+                routes = parseRoutes(log)
+                SendRoute(routes[payload.Destination.String()], payloadRefurbish)
 
                 log.Debug(myIP.String() + " => ROUTE from " + payload.Source.String() + " to " + payload.Destination.String())
                     
             } else if compareIPs( myIP, payload.Gateway ) && compareIPs( myIP, payload.Destination ) {
-                if !contains(ReceivedMessages, stamp) {
+                // if !contains(ReceivedMessages, stamp) {
                     fsm = true
 
                     ReceivedMessages = appendToList(ReceivedMessages, stamp)
@@ -288,9 +291,9 @@ for {
                     log.Debug(myIP.String() + " SUCCESS ROUTE -> stamp: " + stamp +" from " + payload.Source.String() + " after " + strconv.Itoa(payload.Hops) + " hops")
                     log.Debug(myIP.String() + " => " + j)
                     log.Info(myIP.String() + " => SUCCESS_ROUTE=1")
-                } else {
-                    log.Info(myIP.String() + " => SUCCESS_AGAIN_ROUTE=1")
-                }
+                // } else {
+                //     log.Info(myIP.String() + " => SUCCESS_AGAIN_ROUTE=1")
+                // }
             }
         } else {
             fsm = true
@@ -432,13 +435,17 @@ for {
                 log.Debug( myIP.String() + " => State: A1, RCV Aggregate -> done()")
                 CleanupTheHouse()
 
-            } else if payload.Type == TimeoutType { // timeout -> SND AggregateRoute // not today
+            } else if payload.Type == TimeoutType { // timeout -> SND AggregateRoute 
                 state = A2 // it should do this, but not today
                 
                 payloadRefurbish := helperAggregatePacket( parentIP, accumulator, observations )
-                RouterWaitRoom[payloadRefurbish.Timestamp] = payloadRefurbish
-                RouterWaitCount[payloadRefurbish.Timestamp] = 0
-                SendHello(payloadRefurbish.Timestamp)
+
+                // RouterWaitRoom[payloadRefurbish.Timestamp] = payloadRefurbish
+                // RouterWaitCount[payloadRefurbish.Timestamp] = 0
+                // SendHello(payloadRefurbish.Timestamp)
+                routes = parseRoutes(log)
+                SendRoute(routes[parentIP.String()], payloadRefurbish)
+
 
                 log.Debug( myIP.String() + " => State: A1, timeout() -> SND AggregateRoute")
                 log.Debug( myIP.String() + " => " + string(j) )
