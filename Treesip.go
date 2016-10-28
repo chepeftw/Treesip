@@ -278,7 +278,7 @@ for {
                 // SendHello(stamp)
 
                 routes = parseRoutes(log)
-                SendRoute(routes[payload.Destination.String()], payloadRefurbish)
+                SendRoute(net.ParseIP(routes[payload.Destination.String()]), payload)
 
                 log.Debug(myIP.String() + " => ROUTE from " + payload.Source.String() + " to " + payload.Destination.String())
                     
@@ -444,7 +444,7 @@ for {
                 // RouterWaitCount[payloadRefurbish.Timestamp] = 0
                 // SendHello(payloadRefurbish.Timestamp)
                 routes = parseRoutes(log)
-                SendRoute(routes[parentIP.String()], payloadRefurbish)
+                SendRoute(net.ParseIP(routes[parentIP.String()]), payloadRefurbish)
 
 
                 log.Debug( myIP.String() + " => State: A1, timeout() -> SND AggregateRoute")
