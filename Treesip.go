@@ -65,6 +65,9 @@ var globalCounter int = 0
 var electionNode string = ""
 var runMode string = ""
 
+// My intention is to have 0 for gossip routing and 1 for OLSR
+var routingMode = 0
+
 var s1 = rand.NewSource(time.Now().UnixNano())
 var r1 = rand.New(s1)
 
@@ -273,17 +276,20 @@ for {
             stamp := payload.Timestamp
             if compareIPs( myIP, payload.Gateway ) && !compareIPs( myIP, payload.Destination ) {
     
-                // RouterWaitRoom[stamp] = payload
-
-                // SendHello(stamp)
-
-                routes = parseRoutes(log)
-                SendRoute(net.ParseIP(routes[payload.Destination.String()]), payload)
+                if routingMode == 0 {
+                    RouterWaitRoom[stamp] = payload
+                    SendHello(stamp)
+                } else if routingMode == 1 {
+                    routes = parseRoutes(log)
+                    SendRoute(net.ParseIP(routes[payload.Destination.String()]), payload)
+                }
 
                 log.Debug(myIP.String() + " => ROUTE from " + payload.Source.String() + " to " + payload.Destination.String())
                     
             } else if compareIPs( myIP, payload.Gateway ) && compareIPs( myIP, payload.Destination ) {
-                // if !contains(ReceivedMessages, stamp) {
+
+                if (routingMode == 0 && !contains(ReceivedMessages, stamp))
+                    || (routingMode == 1) {
                     fsm = true
 
                     ReceivedMessages = appendToList(ReceivedMessages, stamp)
@@ -291,9 +297,10 @@ for {
                     log.Debug(myIP.String() + " SUCCESS ROUTE -> stamp: " + stamp +" from " + payload.Source.String() + " after " + strconv.Itoa(payload.Hops) + " hops")
                     log.Debug(myIP.String() + " => " + j)
                     log.Info(myIP.String() + " => SUCCESS_ROUTE=1")
-                // } else {
-                //     log.Info(myIP.String() + " => SUCCESS_AGAIN_ROUTE=1")
-                // }
+                } else if routingMode == 0 && contains(ReceivedMessages, stamp) { {
+                    log.Info(myIP.String() + " => SUCCESS_AGAIN_ROUTE=1")
+                }
+
             }
         } else {
             fsm = true
@@ -440,11 +447,14 @@ for {
                 
                 payloadRefurbish := helperAggregatePacket( parentIP, accumulator, observations )
 
-                // RouterWaitRoom[payloadRefurbish.Timestamp] = payloadRefurbish
-                // RouterWaitCount[payloadRefurbish.Timestamp] = 0
-                // SendHello(payloadRefurbish.Timestamp)
-                routes = parseRoutes(log)
-                SendRoute(net.ParseIP(routes[parentIP.String()]), payloadRefurbish)
+                if routingMode == 0 {
+                    RouterWaitRoom[payloadRefurbish.Timestamp] = payloadRefurbish
+                    RouterWaitCount[payloadRefurbish.Timestamp] = 0
+                    SendHello(payloadRefurbish.Timestamp)   
+                } else if routingMode == 1 {
+                    routes = parseRoutes(log)
+                    SendRoute(net.ParseIP(routes[parentIP.String()]), payloadRefurbish)
+                }
 
 
                 log.Debug( myIP.String() + " => State: A1, timeout() -> SND AggregateRoute")
@@ -645,3 +655,49 @@ func main() {
 
     <-done
 }
+
+// the problem is the routing, when I send a HELLO message,
+// there could be times, because of reachability or clash between messages
+// where no one hears the HELLO so no one replies therefore
+// it gets stuck.
+
+// So i need to add a timeout mechanism for the hello message,
+// maybe small one, so if no one replies it tries again and again
+// until someone replies my hello and I can route.
+// Also I should consider a small timeout, not that big. Random timeout of course.
+// And MAYBE a "custom" timeout type, instead of reusing the TimeoutType
+// I could have a TimeoutHelloType so I can distinguish between the two timeouts.
+
+
+
+// ------------------------------------------------------------------------------------
+
+// INFO=> 1026 22:05:02.37 Treesip.go:169 10.12.0.22 SENDING_MESSAGE=1
+// DEBU=> 1026 22:05:02.371 Treesip.go:615 buffer => {"tp":8,"src":"10.12.0.18","dst":"10.12.0.3","ts":"1012016_1477519485045133019"}
+// DEBU=> 1026 22:05:02.382 Treesip.go:615 buffer => {"tp":8,"src":"10.12.0.19","dst":"10.12.0.3","ts":"1012016_1477519485045133019"}
+// DEBU=> 1026 22:05:02.385 Treesip.go:615 buffer => {"tp":8,"src":"10.12.0.20","dst":"10.12.0.3","ts":"1012016_1477519485045133019"}
+// DEBU=> 1026 22:05:02.391 Treesip.go:615 buffer => {"tp":8,"src":"10.12.0.14","dst":"10.12.0.3","ts":"1012016_1477519485045133019"}
+// DEBU=> 1026 22:05:02.393 Treesip.go:615 buffer => {"tp":8,"src":"10.12.0.2","dst":"10.12.0.3","ts":"1012016_1477519485045133019"}
+// DEBU=> 1026 22:05:02.407 Treesip.go:615 buffer => {"tp":8,"src":"10.12.0.16","dst":"10.12.0.3","ts":"1012016_1477519485045133019"}
+// DEBU=> 1026 22:05:04.2 Treesip.go:105 TimerHello Expired
+// DEBU=> 1026 22:05:04.201 Treesip.go:224 10.12.0.22 => HELLO_TIMEOUT 1012020_1477519485704978357
+// DEBU=> 1026 22:05:04.201 Treesip.go:167 10.12.0.22 {"tp":6,"src":"10.12.0.22","ts":"1012020_1477519485704978357"} MESSAGE_SIZE=62
+// INFO=> 1026 22:05:04.201 Treesip.go:169 10.12.0.22 SENDING_MESSAGE=1
+// DEBU=> 1026 22:05:04.201 Treesip.go:615 buffer => {"tp":6,"src":"10.12.0.22","ts":"1012020_1477519485704978357"}
+// DEBU=> 1026 22:05:04.205 Treesip.go:615 buffer => {"tp":8,"src":"10.12.0.19","dst":"10.12.0.22","ts":"1012020_1477519485704978357"}
+// DEBU=> 1026 22:05:04.208 Treesip.go:615 buffer => {"tp":8,"src":"10.12.0.2","dst":"10.12.0.22","ts":"1012020_1477519485704978357"}
+// DEBU=> 1026 22:05:04.21 Treesip.go:615 buffer => {"tp":8,"src":"10.12.0.16","dst":"10.12.0.22","ts":"1012020_1477519485704978357"}
+// DEBU=> 1026 22:05:04.214 Treesip.go:615 buffer => {"tp":8,"src":"10.12.0.3","dst":"10.12.0.22","ts":"1012020_1477519485704978357"}
+// DEBU=> 1026 22:05:04.216 Treesip.go:615 buffer => {"tp":8,"src":"10.12.0.14","dst":"10.12.0.22","ts":"1012020_1477519485704978357"}
+// DEBU=> 1026 22:05:04.218 Treesip.go:615 buffer => {"tp":8,"src":"10.12.0.23","dst":"10.12.0.22","ts":"1012020_1477519485704978357"}
+// DEBU=> 1026 22:05:04.22 Treesip.go:615 buffer => {"tp":8,"src":"10.12.0.1","dst":"10.12.0.22","ts":"1012020_1477519485704978357"}
+// DEBU=> 1026 22:05:04.222 Treesip.go:615 buffer => {"tp":8,"src":"10.12.0.18","dst":"10.12.0.22","ts":"1012020_1477519485704978357"}
+// DEBU=> 1026 22:05:04.361 Treesip.go:615 buffer => {"tp":6,"src":"10.12.0.3","ts":"1012016_1477519485045133019"}
+// DEBU=> 1026 22:05:04.361 Treesip.go:218 10.12.0.22 => _HELLO to 10.12.0.3
+
+
+// So this is the problem, if a AggregateRoute is needed ... is executed, but if it fails, then
+// the node will timeout and will send the hello again, but by this time the timestamp changed
+// because I did something very stupid somewhere SO ... everything fucks up
+// because I heavily rely on this timestamp, so I need to check WHERE THE FUCK I'm changing this stamp
+// and make sure that if it's because of a timeout, that the same timestamp remains.
