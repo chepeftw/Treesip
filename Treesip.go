@@ -288,8 +288,7 @@ for {
                     
             } else if compareIPs( myIP, payload.Gateway ) && compareIPs( myIP, payload.Destination ) {
 
-                if (routingMode == 0 && !contains(ReceivedMessages, stamp))
-                    || (routingMode == 1) {
+                if (routingMode == 0 && !contains(ReceivedMessages, stamp)) || (routingMode == 1) {
                     fsm = true
 
                     ReceivedMessages = appendToList(ReceivedMessages, stamp)
@@ -297,7 +296,7 @@ for {
                     log.Debug(myIP.String() + " SUCCESS ROUTE -> stamp: " + stamp +" from " + payload.Source.String() + " after " + strconv.Itoa(payload.Hops) + " hops")
                     log.Debug(myIP.String() + " => " + j)
                     log.Info(myIP.String() + " => SUCCESS_ROUTE=1")
-                } else if routingMode == 0 && contains(ReceivedMessages, stamp) { {
+                } else if routingMode == 0 && contains(ReceivedMessages, stamp) {
                     log.Info(myIP.String() + " => SUCCESS_AGAIN_ROUTE=1")
                 }
 
@@ -480,7 +479,8 @@ for {
         done <- true
         return
     }
-}
+
+    }
 }
 
 // This function selects the Root node, the source, the NEO!
