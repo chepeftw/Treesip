@@ -1,5 +1,13 @@
 package main
 
+// Possible future improvements
+// https://developers.google.com/protocol-buffers/docs/gotutorial
+// https://github.com/golang/protobuf
+// http://msgpack.org/index.html
+// Basically changing JSON for ProtocolBuffers or MsgPack
+// Of course I should check first IF its really an improvement in the packet size
+
+
 import (
     "net"
     // "github.com/op/go-logging"
