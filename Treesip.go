@@ -483,11 +483,11 @@ func main() {
 
 	portFlag := DefPort
 	rootFlag := 1
-	if len(os.Args[1:]) >= 1 {
-		portFlag, _ = strconv.Atoi(os.Args[1])
-	} else if len(os.Args[1:]) >= 2 {
+	if len(os.Args[1:]) >= 2 {
 		portFlag, _ = strconv.Atoi(os.Args[1])
 		rootFlag, _ = strconv.Atoi(os.Args[2])
+	} else if len(os.Args[1:]) >= 1 {
+		portFlag, _ = strconv.Atoi(os.Args[1])
 	}
 
     // Flags
