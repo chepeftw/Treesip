@@ -521,6 +521,7 @@ func main() {
     log.Info("FLAGS : rootNodeIP is " + rootNodeIP)
     log.Info("FLAGS : electionNode is " + electionNode)
     log.Info("FLAGS : targetSyncFlag is " + strconv.FormatFloat(*targetSyncFlag, 'E', -1, 64))
+    log.Info("FLAGS : args[0] " + os.Args[0])
     log.Info("")
     log.Info("------------------------------------------------------------------------")
     log.Info("")
