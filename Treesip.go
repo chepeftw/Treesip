@@ -29,6 +29,7 @@ var format = logging.MustStringFormatter(
 // +++++++++ Constants
 const (
     DefPort           = ":10001"
+    RouterPort        = ":10000"
     Protocol          = "udp"
     BroadcastAddr     = "255.255.255.255"
     LocalhostAddr     = "127.0.0.1"
@@ -455,7 +456,7 @@ for {
                 if routingMode == 0 {
                     RouterWaitRoom[payloadRefurbish.Timestamp] = payloadRefurbish
                     RouterWaitCount[payloadRefurbish.Timestamp] = 0
-                    SendHello(payloadRefurbish.Timestamp)   
+                    SendHello(payloadRefurbish.Timestamp)
                 } else if routingMode == 1 {
                     routes = parseRoutes(log)
                     SendRoute(net.ParseIP(routes[parentIP.String()]), payloadRefurbish)
@@ -558,6 +559,29 @@ func selectLeaderOfTheManet() {
         buffer <- string(js)
     }
 }
+
+
+func toRouter(payload Packet) {
+    ServerAddr,err := net.ResolveUDPAddr(Protocol, myIP.String()+RouterPort)
+    checkError(err, log)
+    LocalAddr, err := net.ResolveUDPAddr(Protocol, myIP.String()+":0")
+    checkError(err, log)
+    Conn, err := net.DialUDP(Protocol, LocalAddr, ServerAddr)
+    checkError(err, log)
+    defer Conn.Close()
+
+    if Conn != nil {
+        js, err := json.Marshal(payload)
+        checkError(err, log)
+
+        buf := []byte(js)
+        _,err = Conn.Write(buf)
+        log.Debug( myIP.String() + " " + j + " MESSAGE_SIZE=" + strconv.Itoa(len(buf)) )
+        log.Info( myIP.String() + " SENDING_MESSAGE=1" )
+        checkError(err, log)
+    }
+}
+
 // ------------
  
 func main() {
