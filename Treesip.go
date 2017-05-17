@@ -488,8 +488,8 @@ func main() {
         syncFlag, _ = strconv.Atoi(os.Args[3])
     }
     if len(os.Args[1:]) >= 2 {
+        electionNode = "10.12.0." + os.Args[2]
         rootFlag, _ = strconv.Atoi(os.Args[2])
-        electionNode = "10.12.0." + strconv.Itoa(rootFlag)
     }
     if len(os.Args[1:]) >= 1 {
         portFlag, _ = strconv.Atoi(os.Args[1])
@@ -522,6 +522,7 @@ func main() {
     log.Info("")
     log.Info("FLAGS : portFlag is " + strconv.Itoa(portFlag))
     log.Info("FLAGS : rootFlag is " + strconv.Itoa(rootFlag))
+    log.Info("FLAGS : syncFlag is " + strconv.Itoa(syncFlag))
     log.Info("FLAGS : electionNode is " + electionNode)
 	log.Info("")
 	for _, element := range os.Args {
