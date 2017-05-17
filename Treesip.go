@@ -565,9 +565,6 @@ func main() {
     for {
         n,_,err := ServerConn.ReadFromUDP(buf)
         str := string(buf[0:n])
-        // if myIP.String() != "10.12.0.1" {
-        //     log.Debug("buffer => "+str)
-        // }
         
         buffer <- str
         treesiplibs.CheckError(err, log)
