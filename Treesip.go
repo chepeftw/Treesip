@@ -481,14 +481,19 @@ func main() {
         targetSync, _ = strconv.ParseFloat(tsync, 64)
     }
 
-	portFlag := DefPort
-	rootFlag := 1
-	if len(os.Args[1:]) >= 2 {
-		portFlag, _ = strconv.Atoi(os.Args[1])
-		rootFlag, _ = strconv.Atoi(os.Args[2])
-	} else if len(os.Args[1:]) >= 1 {
-		portFlag, _ = strconv.Atoi(os.Args[1])
-	}
+    portFlag := DefPort
+    rootFlag := 1
+    syncFlag := 0
+    if len(os.Args[1:]) >= 3 {
+        syncFlag, _ = strconv.Atoi(os.Args[3])
+    }
+    if len(os.Args[1:]) >= 2 {
+        rootFlag, _ = strconv.Atoi(os.Args[2])
+        electionNode = "10.12.0." + strconv.Itoa(rootFlag)
+    }
+    if len(os.Args[1:]) >= 1 {
+        portFlag, _ = strconv.Atoi(os.Args[1])
+    }
 
     // Flags
 
@@ -543,6 +548,7 @@ func main() {
     } else {
         sleepTime = globalNumberNodes
     }
+    sleepTime = sleepTime + syncFlag
     log.Info("SYNC: sleepTime is " + strconv.Itoa(sleepTime))
     time.Sleep(time.Second * time.Duration(sleepTime))
     // ------------
