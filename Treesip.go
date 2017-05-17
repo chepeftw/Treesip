@@ -549,7 +549,7 @@ func main() {
 
     // But first let me take a selfie, in a Go lang program is getting my own IP
     myIP = treesiplibs.SelfieIP()
-    log.Info("Good to go, my ip is " + myIP.String())
+    log.Info( "Good to go, my ip is " + myIP.String() + " and port is " + Port )
 
     // Lets prepare a address at any address at port 10001
     ServerAddr,err := net.ResolveUDPAddr(Protocol, Port)
