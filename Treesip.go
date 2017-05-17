@@ -492,8 +492,10 @@ func main() {
     targetSync = *targetSyncFlag
 
     var rootNodeIP string
-    flag.StringVar(&rootNodeIP, "root", electionNode, "The IP of the root node")
+    flag.StringVar(&rootNodeIP, "root", "10.0.0.0", "The IP of the root node")
     electionNode = rootNodeIP
+    log.Info("NEO : rootNodeIP is " + rootNodeIP)
+    log.Info("NEO : electionNode is " + electionNode)
 
 
     // Logger configuration
