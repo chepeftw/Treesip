@@ -6,7 +6,6 @@ import (
     "net"
     "time"
     "math"
-    "flag"
     "strings"
     "strconv"
     "encoding/json"
@@ -28,7 +27,7 @@ var format = logging.MustStringFormatter(
 
 // +++++++++ Constants
 const (
-    DefPort           = ":10001"
+    DefPort           = 10001
     RouterPort        = ":10000"
     Protocol          = "udp"
     BroadcastAddr     = "255.255.255.255"
@@ -482,7 +481,7 @@ func main() {
         targetSync, _ = strconv.ParseFloat(tsync, 64)
     }
 
-	portFlag := 10001
+	portFlag := DefPort
 	rootFlag := 1
 	if len(os.Args[1:]) >= 1 {
 		portFlag, _ = strconv.Atoi(os.Args[1])
