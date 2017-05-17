@@ -81,6 +81,7 @@ var ReceivedMessages []string = []string{}
 
 // +++++++++ Multi node support
 var Port = ":0"
+var PortInt = 0
 var machines map[string]string = make(map[string]string)
 var timers map[string]*time.Timer = make(map[string]*time.Timer)
 
@@ -148,7 +149,7 @@ func SendAggregate(destination net.IP, outcome float32, observations int) {
 }
 func helperAggregatePacket(destination net.IP, outcome float32, observations int) Packet {
     stamp := strings.Replace(myIP.String(), ".", "", -1) + "_" + strconv.FormatInt(time.Now().UTC().UnixNano(), 10)
-    return assembleAggregate(destination, outcome, observations, parentIP, myIP, timeout, stamp)
+    return assembleAggregate(destination, outcome, observations, parentIP, myIP, timeout, stamp, PortInt)
 }
 func SendMessage(payload Packet) {
     js, err := json.Marshal(payload)
@@ -542,6 +543,7 @@ func selectLeaderOfTheManet() {
         payload := Packet{
             Type: StartType,
             Source: myIP,
+            Port: PortInt,
             Timeout: calculatedTimeout,
             Level: 0,
             Query: &query,
@@ -579,8 +581,9 @@ func main() {
 
     // Flags
     var portFlag string
-    flag.StringVar(&portFlag, "root", DefPort, "The IP of the root node, e.g. :10001")
+    flag.StringVar(&portFlag, "port", DefPort, "The IP of the root node, e.g. :10001")
     Port = portFlag
+    PortInt, _ = strconv.Atoi( Port[1:] )
 
     targetSyncFlag := flag.Float64("sync", targetSync, "The sync time to start working")
     targetSync = *targetSyncFlag

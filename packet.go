@@ -44,6 +44,7 @@ type Packet struct {
     Source       net.IP     `json:"src,omitempty"`
     Destination  net.IP     `json:"dst,omitempty"`
     Gateway      net.IP     `json:"gw,omitempty"`
+    Port         int        `json:"prt,omitempty"`
 
     Timeout      int        `json:"tmo,omitempty"`
     Query        *Query     `json:"qry,omitempty"`
@@ -96,7 +97,7 @@ func assembleTimeoutHello(stamp string) Packet {
     return payload
 }
 
-func assembleAggregate(dest net.IP, out float32, obs int, dad net.IP, me net.IP, tmo int, stamp string) Packet {
+func assembleAggregate(dest net.IP, out float32, obs int, dad net.IP, me net.IP, tmo int, stamp string, port int) Packet {
     aggregate := Aggregate{
             Outcome: out,
             Observations: obs,
@@ -107,6 +108,7 @@ func assembleAggregate(dest net.IP, out float32, obs int, dad net.IP, me net.IP,
         Parent: dad,
         Source: me,
         Destination: dest,
+        Port: port,
         Timeout: tmo,
         Timestamp: stamp,
         Aggregate: &aggregate,
@@ -130,6 +132,7 @@ func assembleQuery(payloadIn Packet, dad net.IP, me net.IP) Packet {
         Type: QueryType,
         Parent: dad,
         Source: me,
+        Port: payloadIn.Port,
         Timeout: payloadIn.Timeout,
         Level: payloadIn.Level+1,
         Query: &query,
