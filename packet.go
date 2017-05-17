@@ -37,7 +37,8 @@ const (
 
 // +++++++++ Packet structure
 type Packet struct {
-    Type      int        `json:"tp"`
+    ID           string     `json:"id,omitempty"`
+    Type         int        `json:"tp"`
 
     Parent       net.IP     `json:"prnt,omitempty"`
     Source       net.IP     `json:"src,omitempty"`

@@ -12,9 +12,16 @@ func startTimeout(d int, r1 *rand.Rand) *time.Timer {
     return timeout
 }
 
-func startTimeoutF(d float32, r1 *rand.Rand) *time.Timer {
-    timeout := time.NewTimer(time.Millisecond * time.Duration(1000+d))
-    return timeout
+func startTimeoutF(d float32) *time.Timer {
+    return startTimeoutUnited(d, 0)
+}
+
+func startTimeoutStrong(d float32) *time.Timer {
+    return startTimeoutUnited(d, 0)
+}
+
+func startTimeoutUnited(duration float32, offset float32) *time.Timer {
+    return time.NewTimer(time.Millisecond * time.Duration( offset + duration ))
 }
 
 func stopTimeout(timer *time.Timer) {
