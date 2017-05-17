@@ -22,3 +22,5 @@ treesip
 *.exe
 *.test
 *.prof
+
+.idea/*

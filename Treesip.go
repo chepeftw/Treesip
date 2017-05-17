@@ -9,10 +9,10 @@ import (
     "flag"
     "strings"
     "strconv"
-    "math/rand"
     "encoding/json"
 
     "github.com/op/go-logging"
+    "github.com/chepeftw/treesiplibs"
 )
 
 
@@ -41,12 +41,12 @@ const (
     Q2
     A1
     A2
-    A3
 )
 
 // +++++++++ Global vars
 var state = INITIAL
 var myIP net.IP = net.ParseIP(LocalhostAddr)
+var myLH net.IP = net.ParseIP(LocalhostAddr)
 var parentIP net.IP = net.ParseIP(LocalhostAddr)
 var timeout int = 0
 var level int = 0
@@ -68,28 +68,18 @@ var electionNode string = ""
 var runMode string = ""
 
 // My intention is to have 0 for gossip routing and 1 for OLSR
-var routingMode = 0
-
-var s1 = rand.NewSource(time.Now().UnixNano())
-var r1 = rand.New(s1)
+//var routingMode = 0
 
 // +++++++++ Routing Protocol
-var routes map[string]string = make(map[string]string)
-var RouterWaitRoom map[string]Packet = make(map[string]Packet)
-var RouterWaitCount map[string]int = make(map[string]int)
-var ForwardedMessages []string = []string{}
-var ReceivedMessages []string = []string{}
+//var routes map[string]string = make(map[string]string)
 
 // +++++++++ Multi node support
 var Port = ":0"
 var PortInt = 0
-var machines map[string]string = make(map[string]string)
-var timers map[string]*time.Timer = make(map[string]*time.Timer)
 
 // +++++++++ Channels
 var buffer = make(chan string)
 var output = make(chan string)
-var router = make(chan string)
 var done = make(chan bool)
 
 func StartTreeTimer() {
@@ -102,59 +92,36 @@ func StartTimer() {
 }
 
 func StartTimerStar(localTimeout float32) {
-    stopTimeout(timer)
-    timer = startTimeoutF(localTimeout)
+    treesiplibs.StopTimeout(timer)
+    timer = treesiplibs.StartTimeoutF(localTimeout)
 
     go func() {
         <- timer.C
-        js, err := json.Marshal(assembleTimeout())
-        checkError(err, log)
+        js, err := json.Marshal(treesiplibs.AssembleTimeout())
+        treesiplibs.CheckError(err, log)
         buffer <- string(js)
         log.Debug("Timer expired")
     }()
 }
-func StopTimer() {
-    stopTimeout(timer)
-}
-
-func StartTimerHello(stamp string) {
-    timerHello := startTimeout(timeout*2, r1)
-
-    <- timerHello.C
-    js, err := json.Marshal(assembleTimeoutHello(stamp))
-    checkError(err, log)
-    buffer <- string(js)
-    log.Debug("TimerHello Expired " + stamp)
-}
-// func StopTimerHello() {
-//     stopTimeout(timerHello)
-//     log.Debug("TimerHello Stopped")
-// }
+func StopTimer() { treesiplibs.StopTimeout(timer) }
 
 
-func SendHello(stamp string) {
-    SendMessage( assembleHello(myIP, stamp) )
-    go StartTimerHello(stamp)
-}
-func SendHelloReply(payload Packet) {
-    SendMessage( assembleHelloReply(payload, myIP) )
-}
-func SendRoute(gateway net.IP, payloadIn Packet) {
-    SendMessage( assembleRoute(gateway, payloadIn) )
-}
-func SendQuery(payload Packet) {
-    SendMessage( assembleQuery(payload, parentIP, myIP) )
+//func SendRoute(gateway net.IP, payloadIn treesiplibs.Packet) {
+//    SendMessage( treesiplibs.AssembleRoute(gateway, payloadIn) )
+//}
+func SendQuery(payload treesiplibs.Packet) {
+    SendMessage( treesiplibs.AssembleQuery(payload, parentIP, myIP) )
 }
 func SendAggregate(destination net.IP, outcome float32, observations int) {
     SendMessage( helperAggregatePacket( destination, outcome, observations ) )
 }
-func helperAggregatePacket(destination net.IP, outcome float32, observations int) Packet {
+func helperAggregatePacket(destination net.IP, outcome float32, observations int) treesiplibs.Packet {
     stamp := strings.Replace(myIP.String(), ".", "", -1) + "_" + strconv.FormatInt(time.Now().UTC().UnixNano(), 10)
-    return assembleAggregate(destination, outcome, observations, parentIP, myIP, timeout, stamp, PortInt)
+    return treesiplibs.AssembleAggregate(destination, outcome, observations, parentIP, myIP, timeout, stamp, PortInt)
 }
-func SendMessage(payload Packet) {
+func SendMessage(payload treesiplibs.Packet) {
     js, err := json.Marshal(payload)
-    checkError(err, log)
+	treesiplibs.CheckError(err, log)
     output <- string(js)
 }
 
@@ -173,11 +140,11 @@ func LogSuccess() {
 // Function that handles the output channel
 func attendOutputChannel() {
     ServerAddr,err := net.ResolveUDPAddr(Protocol, BroadcastAddr+Port)
-    checkError(err, log)
+    treesiplibs.CheckError(err, log)
     LocalAddr, err := net.ResolveUDPAddr(Protocol, myIP.String()+":0")
-    checkError(err, log)
+    treesiplibs.CheckError(err, log)
     Conn, err := net.DialUDP(Protocol, LocalAddr, ServerAddr)
-    checkError(err, log)
+    treesiplibs.CheckError(err, log)
     defer Conn.Close()
 
     for {
@@ -188,7 +155,7 @@ func attendOutputChannel() {
                 _,err = Conn.Write(buf)
                 log.Debug( myIP.String() + " " + j + " MESSAGE_SIZE=" + strconv.Itoa(len(buf)) )
                 log.Info( myIP.String() + " SENDING_MESSAGE=1" )
-                checkError(err, log)
+                treesiplibs.CheckError(err, log)
             }
         } else {
             fmt.Println("closing channel")
@@ -220,110 +187,23 @@ func CleanupTheHouse() {
 
 // Function that handles the buffer channel
 func attendBufferChannel() {
-fsm := true
 for {
     j, more := <-buffer
     if more {
         // First we take the json, unmarshal it to an object
-        payload := Packet{}
+        payload := treesiplibs.Packet{}
         json.Unmarshal([]byte(j), &payload)
-
-        // Exclusive to the gossip routing protocol
-        fsm = false
-        if payload.Type == HelloType &&
-            !compareIPs( myIP, payload.Source) {
-            
-            if contains(ForwardedMessages, payload.Timestamp) {
-                time.Sleep(time.Duration((r1.Intn(19000)+1000)/100) * time.Millisecond)
-            }
-            SendHelloReply(payload)
-            log.Debug(myIP.String() + " => _HELLO to " + payload.Source.String())
-
-        } else if payload.Type == HelloTimeoutType { // HELLO TIMEOUT
-            if !contains(ForwardedMessages, payload.Timestamp) {
-                SendHello(payload.Timestamp)
-
-                log.Debug(myIP.String() + " => HELLO_TIMEOUT ON TIME" + payload.Timestamp)
-            } else {
-                log.Debug(myIP.String() + " => HELLO_TIMEOUT delayed " + payload.Timestamp)
-            }
-
-        } else if payload.Type == HelloReplyType &&
-                    compareIPs( myIP, payload.Destination ) {
-
-            stamp := payload.Timestamp
-
-            if _, ok := RouterWaitCount[stamp]; ok {
-
-                // Splitting the SendRoute in before ifs to improve performance
-                if RouterWaitCount[stamp] == 0 {
-                    SendRoute(payload.Source, RouterWaitRoom[stamp])
-                }
-
-                if RouterWaitCount[stamp] == 1 && compareIPs(payload.Source, RouterWaitRoom[stamp].Destination) {
-                    SendRoute(payload.Source, RouterWaitRoom[stamp])
-                }
-
-                if ( RouterWaitCount[stamp] == 1 && compareIPs(payload.Source, RouterWaitRoom[stamp].Destination) ) || RouterWaitCount[stamp] == 0 {
-                    // StopTimerHello()
-                    SendRoute(payload.Source, RouterWaitRoom[stamp])
-                    ForwardedMessages = appendToList(ForwardedMessages, stamp)
-                    // delete(RouterWaitRoom, stamp)
-                    RouterWaitCount[stamp] = 1
-
-                    log.Debug(myIP.String() + " => HELLO_REPLY WIN from " + payload.Source.String())
-                } else {
-                    log.Debug(myIP.String() + " => HELLO_REPLY FAIL from " + payload.Source.String())
-                }
-            } else {
-                log.Debug(myIP.String() + " => HELLO_REPLY NOT IN RouterWaitRoom from " + payload.Source.String())
-            }
-
-        } else if payload.Type == RouteByGossipType {
-            stamp := payload.Timestamp
-            if compareIPs( myIP, payload.Gateway ) && !compareIPs( myIP, payload.Destination ) {
-    
-                if routingMode == 0 {
-                    RouterWaitRoom[stamp] = payload
-                    SendHello(stamp)
-                } else if routingMode == 1 {
-                    routes = parseRoutes(log)
-                    SendRoute(net.ParseIP(routes[payload.Destination.String()]), payload)
-                }
-
-                log.Debug(myIP.String() + " => ROUTE from " + payload.Source.String() + " to " + payload.Destination.String())
-                    
-            } else if compareIPs( myIP, payload.Gateway ) && compareIPs( myIP, payload.Destination ) {
-
-                if (routingMode == 0 && !contains(ReceivedMessages, stamp)) || (routingMode == 1) {
-                    fsm = true
-
-                    ReceivedMessages = appendToList(ReceivedMessages, stamp)
-
-                    log.Debug(myIP.String() + " SUCCESS ROUTE -> stamp: " + stamp +" from " + payload.Source.String() + " after " + strconv.Itoa(payload.Hops) + " hops")
-                    log.Debug(myIP.String() + " => " + j)
-                    log.Info(myIP.String() + " => SUCCESS_ROUTE=1")
-                } else if routingMode == 0 && contains(ReceivedMessages, stamp) {
-                    log.Info(myIP.String() + " => SUCCESS_AGAIN_ROUTE=1")
-                }
-
-            }
-        } else {
-            fsm = true
-        }
-
 
 
         // Now we start! FSM TIME!
-        if fsm {
         switch state {
         case INITIAL:
             // RCV start() -> SND Query
-            if payload.Type == StartType {
+            if payload.Type == treesiplibs.StartType {
                 startTime = time.Now().UnixNano() // Start time of the monitoring process
             }
 
-            if payload.Type == StartType || payload.Type == QueryType {
+            if payload.Type == treesiplibs.StartType || payload.Type == treesiplibs.QueryType {
                 state = Q1 // Moving to Q1 state
                 parentIP = payload.Source
                 timeout = payload.Timeout
@@ -340,9 +220,9 @@ for {
         break
         case Q1: 
             // RCV QueryACK -> acc(ACK_IP)
-            if payload.Type == QueryType && 
-                    compareIPs(myIP, payload.Parent) && 
-                    !compareIPs(myIP, payload.Source) {
+            if payload.Type == treesiplibs.QueryType && 
+                    eqIp(myIP, payload.Parent) && 
+                    !eqIp(myIP, payload.Source) {
 
                 state = Q2
                 queryACKlist = append(queryACKlist, payload.Source)
@@ -351,11 +231,11 @@ for {
 
                 log.Debug( myIP.String() + " => State: Q1, RCV QueryACK -> acc( " + payload.Source.String() + " )-> " + strconv.Itoa( len( queryACKlist ) ) )
 
-            } else if payload.Type == TimeoutType { // timeout()/edgeNode() -> SND Aggregate
+            } else if payload.Type == treesiplibs.TimeoutType { // timeout()/edgeNode() -> SND Aggregate
                 state = A1
 
                 // Just one outcome and 1 observation because it should be the end of a branch
-                accumulator = functionValue(accumulator)
+                accumulator = treesiplibs.FunctionValue(accumulator)
                 observations = 1
                 log.Debug( myIP.String() + " => OBSERVATIONS=1" )
                 SendAggregate(parentIP, accumulator, observations)
@@ -366,30 +246,30 @@ for {
         break
         case Q2:
             // RCV QueryACK -> acc(ACK_IP)
-            if payload.Type == QueryType && 
-                    compareIPs(myIP, payload.Parent) && 
-                    !compareIPs(myIP, payload.Source) {
+            if payload.Type == treesiplibs.QueryType && 
+                    eqIp(myIP, payload.Parent) && 
+                    !eqIp(myIP, payload.Source) {
 
                 state = Q2 // loop to stay in Q2
                 queryACKlist = append(queryACKlist, payload.Source)
 
                 log.Debug( myIP.String() + " => State: Q2, RCV QueryACK -> acc( " + payload.Source.String() + " ) -> " + strconv.Itoa( len( queryACKlist ) ))
 
-            } else if ( payload.Type == AggregateType || 
-                    payload.Type == RouteByGossipType ) && 
-                    compareIPs(myIP, payload.Destination) { // RCV Aggregate -> SND Aggregate 
+            } else if ( payload.Type == treesiplibs.AggregateType || 
+                    payload.Type == treesiplibs.RouteByGossipType ) && 
+                    eqIp(myIP, payload.Destination) { // RCV Aggregate -> SND Aggregate 
 
                 // not always but yes
                 // I check that the parent it is itself, that means that he already stored this guy
                 // in the queryACKList
                 state = A1
-                queryACKlist = removeFromList(payload.Source, queryACKlist)
+                queryACKlist = treesiplibs.RemoveFromList(payload.Source, queryACKlist)
 
                 StopTimer()
-                accumulator, observations  = aggregateValue( payload.Aggregate.Outcome, payload.Aggregate.Observations, accumulator, observations)
+                accumulator, observations  = treesiplibs.AggregateValue( payload.Aggregate.Outcome, payload.Aggregate.Observations, accumulator, observations)
 
                 if len(queryACKlist) == 0 {
-                    accumulator = functionValue(accumulator)
+                    accumulator = treesiplibs.FunctionValue(accumulator)
                     observations = observations + 1
                     log.Debug( myIP.String() + " => OBSERVATIONS=1" )
                     SendAggregate(parentIP, accumulator, observations)
@@ -404,26 +284,26 @@ for {
             // RCV Aggregate -> SND Aggregate // not always but yes
             // I check that the parent it is itself, that means that he already stored this guy
             // in the queryACKList
-            if ( payload.Type == AggregateType || 
-                    payload.Type == RouteByGossipType ) && 
-                    compareIPs(myIP, payload.Destination) {
+            if ( payload.Type == treesiplibs.AggregateType || 
+                    payload.Type == treesiplibs.RouteByGossipType ) && 
+                    eqIp(myIP, payload.Destination) {
 
-                if containsIP(queryACKlist, payload.Source) {
+                if treesiplibs.ContainsIP(queryACKlist, payload.Source) {
 
-                    if payload.Type == RouteByGossipType {
+                    if payload.Type == treesiplibs.RouteByGossipType {
                             log.Debug( myIP.String() + " Incoming routing => " + j)
                     }
                     
                     state = A1
-                    queryACKlist = removeFromList(payload.Source, queryACKlist)
+                    queryACKlist = treesiplibs.RemoveFromList(payload.Source, queryACKlist)
 
                     StopTimer()
-                    accumulator, observations  = aggregateValue( payload.Aggregate.Outcome, payload.Aggregate.Observations, accumulator, observations)
+                    accumulator, observations  = treesiplibs.AggregateValue( payload.Aggregate.Outcome, payload.Aggregate.Observations, accumulator, observations)
 
                     log.Debug( myIP.String() + " => State: A1, RCV Aggregate & loop() -> SND Aggregate " + payload.Source.String() + " -> " + strconv.Itoa(len(queryACKlist)))
 
                     if len(queryACKlist) == 0 {
-                        accumulator = functionValue(accumulator)
+                        accumulator = treesiplibs.FunctionValue(accumulator)
                         observations = observations + 1
                         log.Debug( myIP.String() + " => OBSERVATIONS=1" )
 
@@ -442,26 +322,23 @@ for {
 
                 }
 
-            } else if payload.Type == AggregateType && 
-                    compareIPs(parentIP, payload.Source) { // RCV AggregateACK -> done()
+            } else if payload.Type == treesiplibs.AggregateType && 
+                    eqIp(parentIP, payload.Source) { // RCV AggregateACK -> done()
 
                 log.Debug( myIP.String() + " => State: A1, RCV Aggregate -> done()")
                 CleanupTheHouse()
 
-            } else if payload.Type == TimeoutType { // timeout -> SND AggregateRoute 
+            } else if payload.Type == treesiplibs.TimeoutType { // timeout -> SND AggregateRoute 
                 state = A2 // it should do this, but not today
                 
                 payloadRefurbish := helperAggregatePacket( parentIP, accumulator, observations )
 
-                if routingMode == 0 {
-                    RouterWaitRoom[payloadRefurbish.Timestamp] = payloadRefurbish
-                    RouterWaitCount[payloadRefurbish.Timestamp] = 0
-                    SendHello(payloadRefurbish.Timestamp)
-                } else if routingMode == 1 {
-                    routes = parseRoutes(log)
-                    SendRoute(net.ParseIP(routes[parentIP.String()]), payloadRefurbish)
-                }
-
+                //if routingMode == 0 {
+	        toRouter(payloadRefurbish)
+                //} else if routingMode == 1 {
+                //    routes = treesiplibs.ParseRoutes(log)
+                //    SendRoute(net.ParseIP(routes[parentIP.String()]), payloadRefurbish)
+                //}
 
                 log.Debug( myIP.String() + " => State: A1, timeout() -> SND AggregateRoute")
                 log.Debug( myIP.String() + " => " + string(j) )
@@ -479,7 +356,6 @@ for {
             // Welcome to Stranger Things ... THIS REALLY SHOULD NOT HAPPEN
         break
         }
-        }
 
     } else {
         log.Debug("closing channel")
@@ -488,6 +364,10 @@ for {
     }
 
     }
+}
+
+func eqIp( a net.IP, b net.IP ) bool {
+	return treesiplibs.CompareIPs(a, b)
 }
 
 // This function selects the Root node, the source, the NEO!
@@ -531,7 +411,7 @@ func selectLeaderOfTheManet() {
     if myIP.String() == neo {
         rootNode = true
 
-        query := Query{
+        query := treesiplibs.Query{
                 Function: "avg",
                 RelaySet: []*net.IP{},
             }
@@ -541,8 +421,8 @@ func selectLeaderOfTheManet() {
             calculatedTimeout = externalTimeout
         }
 
-        payload := Packet{
-            Type: StartType,
+        payload := treesiplibs.Packet{
+            Type: treesiplibs.StartType,
             Source: myIP,
             Port: PortInt,
             Timeout: calculatedTimeout,
@@ -554,31 +434,30 @@ func selectLeaderOfTheManet() {
         time.Sleep(time.Second * 3)
 
         js, err := json.Marshal(payload)
-        checkError(err, log)
+        treesiplibs.CheckError(err, log)
         log.Debug("Initial JSON " + string(js))
         buffer <- string(js)
     }
 }
 
 
-func toRouter(payload Packet) {
-    ServerAddr,err := net.ResolveUDPAddr(Protocol, myIP.String()+RouterPort)
-    checkError(err, log)
-    LocalAddr, err := net.ResolveUDPAddr(Protocol, myIP.String()+":0")
-    checkError(err, log)
+func toRouter(payload treesiplibs.Packet) {
+    ServerAddr,err := net.ResolveUDPAddr(Protocol, myLH.String()+RouterPort)
+    treesiplibs.CheckError(err, log)
+    LocalAddr, err := net.ResolveUDPAddr(Protocol, myLH.String()+":0")
+    treesiplibs.CheckError(err, log)
     Conn, err := net.DialUDP(Protocol, LocalAddr, ServerAddr)
-    checkError(err, log)
+    treesiplibs.CheckError(err, log)
     defer Conn.Close()
 
     if Conn != nil {
         js, err := json.Marshal(payload)
-        checkError(err, log)
+        treesiplibs.CheckError(err, log)
 
         buf := []byte(js)
         _,err = Conn.Write(buf)
-        log.Debug( myIP.String() + " " + j + " MESSAGE_SIZE=" + strconv.Itoa(len(buf)) )
-        log.Info( myIP.String() + " SENDING_MESSAGE=1" )
-        checkError(err, log)
+        log.Info( myIP.String() + " INTERNAL_MESSAGE=1" )
+        treesiplibs.CheckError(err, log)
     }
 }
 
@@ -651,7 +530,7 @@ func main() {
     // Go programs containers start at the same UnixTime.
     now := float64(time.Now().Unix())
     sleepTime := 0
-    if( targetSync > now ) {
+    if targetSync > now {
         sleepTime = int(targetSync - now)
         log.Info("SYNC: Sync time is " + strconv.FormatFloat( targetSync, 'f', 6, 64) )
     } else {
@@ -662,16 +541,16 @@ func main() {
     // ------------
 
     // But first let me take a selfie, in a Go lang program is getting my own IP
-    myIP = selfieIP();
+    myIP = treesiplibs.SelfieIP()
     log.Info("Good to go, my ip is " + myIP.String())
 
     // Lets prepare a address at any address at port 10001
     ServerAddr,err := net.ResolveUDPAddr(Protocol, Port)
-    checkError(err, log)
+    treesiplibs.CheckError(err, log)
  
     // Now listen at selected port
     ServerConn, err := net.ListenUDP(Protocol, ServerAddr)
-    checkError(err, log)
+    treesiplibs.CheckError(err, log)
     defer ServerConn.Close()
 
     // Run the FSM! The one in charge of everything
@@ -691,7 +570,7 @@ func main() {
         // }
         
         buffer <- str
-        checkError(err, log)
+        treesiplibs.CheckError(err, log)
     }
 
     close(buffer)
