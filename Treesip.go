@@ -483,9 +483,8 @@ func main() {
     }
 
     // Flags
-    var portFlag string
-    flag.StringVar(&portFlag, "port", DefPort, "The IP of the root node, e.g. :10001")
-    Port = portFlag
+    portFlag := flag.String("port", DefPort, "The IP of the root node, e.g. :10001")
+    Port = *portFlag
     PortInt, _ = strconv.Atoi( Port[1:] )
 
     targetSyncFlag := flag.Float64("sync", targetSync, "The sync time to start working")
@@ -515,7 +514,7 @@ func main() {
     backendLeveled.SetLevel(logging.DEBUG, "")
     logging.SetBackend(backendLeveled)
     log.Info("")
-    log.Info("FLAGS : portFlag is " + portFlag)
+    log.Info("FLAGS : portFlag is " + *portFlag)
     log.Info("FLAGS : rootNodeIP is " + rootNodeIP)
     log.Info("FLAGS : electionNode is " + electionNode)
     log.Info("FLAGS : targetSyncFlag is " + strconv.FormatFloat(*targetSyncFlag, 'E', -1, 64))
