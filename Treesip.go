@@ -518,7 +518,11 @@ func main() {
     log.Info("FLAGS : portFlag is " + strconv.Itoa(portFlag))
     log.Info("FLAGS : rootFlag is " + strconv.Itoa(rootFlag))
     log.Info("FLAGS : electionNode is " + electionNode)
-    log.Info("FLAGS : args[0] " + os.Args[0])
+	log.Info("")
+	for _, element := range os.Args {
+		log.Info("FLAGS : " + element)
+	}
+	log.Info("")
     log.Info("")
     log.Info("------------------------------------------------------------------------")
     log.Info("")
