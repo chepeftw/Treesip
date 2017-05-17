@@ -482,19 +482,19 @@ func main() {
         targetSync, _ = strconv.ParseFloat(tsync, 64)
     }
 
+	portFlag := 10001
+	rootFlag := 1
+	if len(os.Args[1:]) >= 1 {
+		portFlag, _ = strconv.Atoi(os.Args[1])
+	} else if len(os.Args[1:]) >= 2 {
+		portFlag, _ = strconv.Atoi(os.Args[1])
+		rootFlag, _ = strconv.Atoi(os.Args[2])
+	}
+
     // Flags
-    portFlag := flag.Int("p", 10002, "The port of the nodes, e.g. 10001")
-    Port = ":" + strconv.Itoa(*portFlag)
-    PortInt = *portFlag
 
-	rootFlag := flag.Int("r", 2, "The IP of the root node, e.g. 7 (later converted to 10.12.0.7)")
-
-    targetSyncFlag := flag.Float64("sync", targetSync, "The sync time to start working")
-    targetSync = *targetSyncFlag
-
-    var rootNodeIP string
-    flag.StringVar(&rootNodeIP, "root", "10.0.0.0", "The IP of the root node")
-    electionNode = rootNodeIP
+    Port = ":" + strconv.Itoa(portFlag)
+    PortInt = portFlag
 
 
     // Logger configuration
@@ -516,11 +516,9 @@ func main() {
     backendLeveled.SetLevel(logging.DEBUG, "")
     logging.SetBackend(backendLeveled)
     log.Info("")
-    log.Info("FLAGS : portFlag is " + strconv.Itoa(*portFlag))
-    log.Info("FLAGS : portFlag is " + strconv.Itoa(*rootFlag))
-    log.Info("FLAGS : rootNodeIP is " + rootNodeIP)
+    log.Info("FLAGS : portFlag is " + strconv.Itoa(portFlag))
+    log.Info("FLAGS : rootFlag is " + strconv.Itoa(rootFlag))
     log.Info("FLAGS : electionNode is " + electionNode)
-    log.Info("FLAGS : targetSyncFlag is " + strconv.FormatFloat(*targetSyncFlag, 'E', -1, 64))
     log.Info("FLAGS : args[0] " + os.Args[0])
     log.Info("")
     log.Info("------------------------------------------------------------------------")
