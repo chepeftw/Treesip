@@ -507,7 +507,7 @@ func main() {
         os.MkdirAll(logPath, 0777)
     }
 
-    var logFile = logPath + "treesip.log"
+    var logFile = logPath + "treesip" + strconv.Itoa(portFlag) + ".log"
     f, err := os.OpenFile(logFile, os.O_APPEND | os.O_CREATE | os.O_RDWR, 0666)
     if err != nil {
         fmt.Printf("error opening file: %v", err)
