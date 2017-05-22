@@ -189,6 +189,8 @@ func attendBufferChannel() {
 for {
     j, more := <-buffer
     if more {
+	attendBufferChannelStartTime := time.Now().UnixNano() // Start time of the monitoring process
+
         // First we take the json, unmarshal it to an object
         payload := treesiplibs.Packet{}
         json.Unmarshal([]byte(j), &payload)
@@ -263,6 +265,7 @@ for {
                 // in the queryACKList
                 state = A1
                 queryACKlist = treesiplibs.RemoveFromList(payload.Source, queryACKlist)
+		log.Info( " ||| " + myIP.String() + " ||| RemoveFromList ||| " + payload.Source.String() + " ||| " )
 
                 StopTimer()
                 accumulator, observations  = treesiplibs.AggregateValue( payload.Aggregate.Outcome, payload.Aggregate.Observations, accumulator, observations)
@@ -295,11 +298,10 @@ for {
                     
                     state = A1
                     queryACKlist = treesiplibs.RemoveFromList(payload.Source, queryACKlist)
+		    log.Info( " ||| " + myIP.String() + " ||| RemoveFromList ||| " + payload.Source.String() + " ||| " )
 
                     StopTimer()
                     accumulator, observations  = treesiplibs.AggregateValue( payload.Aggregate.Outcome, payload.Aggregate.Observations, accumulator, observations)
-
-                    log.Debug( myIP.String() + " => State: A1, RCV Aggregate & loop() -> SND Aggregate " + payload.Source.String() + " -> " + strconv.Itoa(len(queryACKlist)))
 
                     if len(queryACKlist) == 0 {
                         accumulator = treesiplibs.FunctionValue(accumulator)
@@ -318,6 +320,8 @@ for {
                     } else {
                         StartTreeTimer()
                     }
+
+                    log.Debug( myIP.String() + " => State: A1, RCV Aggregate & loop() -> SND Aggregate " + payload.Source.String() + " -> " + strconv.Itoa(len(queryACKlist)))
 
                 }
 
@@ -355,6 +359,8 @@ for {
             // Welcome to Stranger Things ... THIS REALLY SHOULD NOT HAPPEN
         break
         }
+
+	log.Debug("ATTEND_BUFFER_CHANNEL_START_TIME=" + strconv.FormatInt( (time.Now().UnixNano() - attendBufferChannelStartTime) / int64(time.Nanosecond), 10 ))
 
     } else {
         log.Debug("closing channel")
