@@ -60,11 +60,11 @@ var observations int = 0
 var rootNode bool = false
 var startTime int64 = 0
 
-var globalNumberNodes int = 0
+//var globalNumberNodes int = 0
 var externalTimeout int = 0
-var globalCounter int = 0
+//var globalCounter int = 0
 var electionNode string = ""
-var runMode string = ""
+//var runMode string = ""
 
 // My intention is to have 0 for gossip routing and 1 for OLSR
 //var routingMode = 0
@@ -390,26 +390,26 @@ func selectLeaderOfTheManet() {
     // But assumes that a "electionNode" was configured manually from the outside.
     // First we transform the "global counter", which is the number of the node manually
     // elected as the root node, into an actual IP.
-    if runMode != "single" {
-        if globalNumberNodes != 0 {
-            if globalCounter == globalNumberNodes {
-                return
-            }
-
-            // This allows me a maximum number of 62500 nodes. (250*250)
-            s3 := int(globalCounter/250)
-            s4 := int(globalCounter%250)+1
-
-            neo = "10.12." + strconv.Itoa(s3) + "." + strconv.Itoa(s4)
-            globalCounter = globalCounter + 1
-        }
-    } else {
-        if globalCounter > 0 {
-            return
-        }
-
-        globalCounter = globalCounter + 1
-    }
+    //if runMode != "single" {
+    //    if globalNumberNodes != 0 {
+    //        if globalCounter == globalNumberNodes {
+    //            return
+    //        }
+    //
+    //        // This allows me a maximum number of 62500 nodes. (250*250)
+    //        s3 := int(globalCounter/250)
+    //        s4 := int(globalCounter%250)+1
+    //
+    //        neo = "10.12." + strconv.Itoa(s3) + "." + strconv.Itoa(s4)
+    //        globalCounter = globalCounter + 1
+    //    }
+    //} else {
+    //    if globalCounter > 0 {
+    //        return
+    //    }
+    //
+    //    globalCounter = globalCounter + 1
+    //}
 
 
     // If I AM NEO ... send the first message.
@@ -466,45 +466,59 @@ func toRouter(payload treesiplibs.Packet) {
     }
 }
 
+
 // ------------
  
 func main() {
 
-    if nnodes := os.Getenv("NNODES"); nnodes != "" {
-        globalNumberNodes, _ = strconv.Atoi( nnodes )
-    }
-    if ntimeout := os.Getenv("NTIMEOUT"); ntimeout != "" {
-        externalTimeout, _ = strconv.Atoi( ntimeout )
-    }
-    if rootn := os.Getenv("ROOTN"); rootn != "" {
-        electionNode = rootn
-    }
-    if fsmmode := os.Getenv("FSMMODE"); fsmmode != "" {
-        runMode = fsmmode
-    }
-    targetSync := float64(0)
-    if tsync := os.Getenv("TARGETSYNC"); tsync != "" {
-        targetSync, _ = strconv.ParseFloat(tsync, 64)
-    }
+    //if nnodes := os.Getenv("NNODES"); nnodes != "" {
+    //    globalNumberNodes, _ = strconv.Atoi( nnodes )
+    //}
+    //if ntimeout := os.Getenv("NTIMEOUT"); ntimeout != "" {
+    //    externalTimeout, _ = strconv.Atoi( ntimeout )
+    //}
+    //if rootn := os.Getenv("ROOTN"); rootn != "" {
+    //    electionNode = rootn
+    //}
+    //if fsmmode := os.Getenv("FSMMODE"); fsmmode != "" {
+    //    runMode = fsmmode
+    //}
+    //targetSync := float64(0)
+    //if tsync := os.Getenv("TARGETSYNC"); tsync != "" {
+    //    targetSync, _ = strconv.ParseFloat(tsync, 64)
+    //}
 
-    portFlag := DefPort
-    rootFlag := 1
-    syncFlag := 0
-    if len(os.Args[1:]) >= 3 {
-        syncFlag, _ = strconv.Atoi(os.Args[3])
-    }
-    if len(os.Args[1:]) >= 2 {
-        electionNode = "10.12.0." + os.Args[2]
-        rootFlag, _ = strconv.Atoi(os.Args[2])
-    }
+    //portFlag := DefPort
+    //rootFlag := 1
+    //syncFlag := 0
+    //if len(os.Args[1:]) >= 3 {
+    //    syncFlag, _ = strconv.Atoi(os.Args[3])
+    //}
+    //if len(os.Args[1:]) >= 2 {
+    //    electionNode = "10.12.0." + os.Args[2]
+    //    rootFlag, _ = strconv.Atoi(os.Args[2])
+    //}
+    //if len(os.Args[1:]) >= 1 {
+    //    portFlag, _ = strconv.Atoi(os.Args[1])
+    //}
+
+    confPath := "/treesip/conf.yml"
     if len(os.Args[1:]) >= 1 {
-        portFlag, _ = strconv.Atoi(os.Args[1])
+        confPath = os.Args[1]
     }
+    var c treesiplibs.Conf
+    c.GetConf( confPath )
 
-    // Flags
+    externalTimeout = c.Timeout
+    electionNode = "10.12.0." + strconv.Itoa(c.RootNode)
 
-    Port = ":" + strconv.Itoa(portFlag)
-    PortInt = portFlag
+    PortInt = DefPort
+    if c.Port > 0 {
+        PortInt = c.Port
+    }
+    Port = ":" + strconv.Itoa(PortInt)
+
+    targetSync := c.TargetSync
 
 
     // Logger configuration
@@ -513,7 +527,7 @@ func main() {
         os.MkdirAll(logPath, 0777)
     }
 
-    var logFile = logPath + "treesip" + strconv.Itoa(portFlag) + ".log"
+    var logFile = logPath + "treesip" + strconv.Itoa(PortInt) + ".log"
     f, err := os.OpenFile(logFile, os.O_APPEND | os.O_CREATE | os.O_RDWR, 0666)
     if err != nil {
         fmt.Printf("error opening file: %v", err)
@@ -525,19 +539,16 @@ func main() {
     backendLeveled := logging.AddModuleLevel(backendFormatter)
     backendLeveled.SetLevel(logging.DEBUG, "")
     logging.SetBackend(backendLeveled)
+
     log.Info("")
-    log.Info("FLAGS : portFlag is " + strconv.Itoa(portFlag))
-    log.Info("FLAGS : rootFlag is " + strconv.Itoa(rootFlag))
-    log.Info("FLAGS : syncFlag is " + strconv.Itoa(syncFlag))
+    log.Info("FLAGS : portFlag is " + strconv.Itoa(PortInt))
     log.Info("FLAGS : electionNode is " + electionNode)
-	log.Info("")
-	for _, element := range os.Args {
-		log.Info("FLAGS : " + element)
-	}
-	log.Info("")
+    log.Info("")
+    for _, element := range os.Args {
+            log.Info("FLAG : " + element)
+    }
     log.Info("")
     log.Info("------------------------------------------------------------------------")
-    log.Info("")
     log.Info("")
     log.Info("")
     log.Info("Starting Treesip process, waiting some time to get my own IP...")
@@ -552,10 +563,12 @@ func main() {
     if targetSync > now {
         sleepTime = int(targetSync - now)
         log.Info("SYNC: Sync time is " + strconv.FormatFloat( targetSync, 'f', 6, 64) )
-    } else {
-        sleepTime = globalNumberNodes
     }
-    sleepTime = sleepTime + syncFlag
+    //else {
+    //    sleepTime = globalNumberNodes
+    //}
+
+    //sleepTime = sleepTime + syncFlag
     log.Info("SYNC: sleepTime is " + strconv.Itoa(sleepTime))
     time.Sleep(time.Second * time.Duration(sleepTime))
     // ------------
@@ -564,7 +577,7 @@ func main() {
     myIP = treesiplibs.SelfieIP()
     log.Info( "Good to go, my ip is " + myIP.String() + " and port is " + Port )
 
-    // Lets prepare a address at any address at port 10001
+    // Lets prepare a address at any address at port Port
     ServerAddr,err := net.ResolveUDPAddr(Protocol, Port)
     treesiplibs.CheckError(err, log)
  
