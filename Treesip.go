@@ -180,7 +180,7 @@ func CleanupTheHouse() {
     rootNode = false
     startTime = 0
 
-    go selectLeaderOfTheManet()
+    // go selectLeaderOfTheManet()
 }
 
 
